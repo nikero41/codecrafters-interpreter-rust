@@ -29,6 +29,7 @@ enum TokenType {
     SemiColon,
     Minus,
     Slash,
+    Equal,
     EOF,
 }
 
@@ -46,6 +47,7 @@ impl Display for TokenType {
             Self::SemiColon => "SEMICOLON",
             Self::Minus => "MINUS",
             Self::Slash => "SLASH",
+            Self::Equal => "EQUAL",
             Self::EOF => "EOF",
         };
 
@@ -112,6 +114,11 @@ pub fn tokenize(content: String) {
             '/' => Some(Token {
                 token_type: TokenType::Slash,
                 lexeme: "/",
+                literal: None,
+            }),
+            '=' => Some(Token {
+                token_type: TokenType::Equal,
+                lexeme: "=",
                 literal: None,
             }),
             '\n' => {
