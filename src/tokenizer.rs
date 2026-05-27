@@ -20,6 +20,8 @@ impl<'a> Display for Token<'a> {
 enum TokenType {
     LeftParen,
     RightParen,
+    LeftBrace,
+    RightBrace,
     EOF,
 }
 
@@ -28,6 +30,8 @@ impl Display for TokenType {
         let format = match self {
             Self::LeftParen => "LEFT_PAREN",
             Self::RightParen => "RIGHT_PAREN",
+            Self::LeftBrace => "LEFT_BRACE",
+            Self::RightBrace => "RIGHT_BRACE",
             Self::EOF => "EOF",
         };
 
@@ -47,6 +51,16 @@ pub fn tokenize(content: String) {
             ')' => Some(Token {
                 token_type: TokenType::RightParen,
                 lexeme: ")",
+                literal: None,
+            }),
+            '{' => Some(Token {
+                token_type: TokenType::LeftBrace,
+                lexeme: "{",
+                literal: None,
+            }),
+            '}' => Some(Token {
+                token_type: TokenType::RightBrace,
+                lexeme: "}",
                 literal: None,
             }),
             x => None,
