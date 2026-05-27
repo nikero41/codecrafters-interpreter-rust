@@ -22,6 +22,13 @@ enum TokenType {
     RightParen,
     LeftBrace,
     RightBrace,
+    Star,
+    Dot,
+    Comma,
+    Plus,
+    SemiColon,
+    Minus,
+    Slash,
     EOF,
 }
 
@@ -32,6 +39,13 @@ impl Display for TokenType {
             Self::RightParen => "RIGHT_PAREN",
             Self::LeftBrace => "LEFT_BRACE",
             Self::RightBrace => "RIGHT_BRACE",
+            Self::Star => "STAR",
+            Self::Dot => "DOT",
+            Self::Comma => "COMMA",
+            Self::Plus => "PLUS",
+            Self::SemiColon => "SEMICOLON",
+            Self::Minus => "MINUS",
+            Self::Slash => "SLASH",
             Self::EOF => "EOF",
         };
 
@@ -63,7 +77,42 @@ pub fn tokenize(content: String) {
                 lexeme: "}",
                 literal: None,
             }),
-            x => None,
+            '*' => Some(Token {
+                token_type: TokenType::Star,
+                lexeme: "*",
+                literal: None,
+            }),
+            '.' => Some(Token {
+                token_type: TokenType::Dot,
+                lexeme: ".",
+                literal: None,
+            }),
+            ',' => Some(Token {
+                token_type: TokenType::Comma,
+                lexeme: ",",
+                literal: None,
+            }),
+            '+' => Some(Token {
+                token_type: TokenType::Plus,
+                lexeme: "+",
+                literal: None,
+            }),
+            ';' => Some(Token {
+                token_type: TokenType::SemiColon,
+                lexeme: ";",
+                literal: None,
+            }),
+            '-' => Some(Token {
+                token_type: TokenType::Minus,
+                lexeme: "-",
+                literal: None,
+            }),
+            '/' => Some(Token {
+                token_type: TokenType::Slash,
+                lexeme: "/",
+                literal: None,
+            }),
+            _ => None,
         })
         .collect();
 
@@ -73,7 +122,5 @@ pub fn tokenize(content: String) {
         literal: None,
     });
 
-    tokens
-        .iter()
-        .for_each(|token| println!("{}", token))
+    tokens.iter().for_each(|token| println!("{}", token))
 }
