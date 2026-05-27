@@ -54,9 +54,11 @@ impl Display for TokenType {
 }
 
 pub fn tokenize(content: String) {
-    let mut tokens: Vec<Token> = content
+    let mut current_line = 1;
+
+    let tokens: Vec<Option<Token>> = content
         .chars()
-        .filter_map(|char| match char {
+        .map(|char| match char {
             '(' => Some(Token {
                 token_type: TokenType::LeftParen,
                 lexeme: "(",
@@ -112,15 +114,30 @@ pub fn tokenize(content: String) {
                 lexeme: "/",
                 literal: None,
             }),
-            _ => None,
+            '\n' => {
+                current_line += 1;
+                None
+            }
+            x => {
+                eprintln!("[line {}] Error: Unexpected character: {}", current_line, x);
+                None
+            }
         })
+        .chain([Some(Token {
+            token_type: TokenType::EOF,
+            lexeme: "",
+            literal: None,
+        })])
         .collect();
 
-    tokens.push(Token {
-        token_type: TokenType::EOF,
-        lexeme: "",
-        literal: None,
-    });
+    let failed = tokens.iter().any(|token| token.is_none());
 
-    tokens.iter().for_each(|token| println!("{}", token))
+    tokens
+        .into_iter()
+        .filter_map(|token| token)
+        .for_each(|token| println!("{}", token));
+
+    if failed {
+        std::process::exit(65)
+    }
 }
