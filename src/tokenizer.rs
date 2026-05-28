@@ -31,6 +31,8 @@ enum TokenType {
     Slash,
     Equal,
     Assign,
+    Bang,
+    BangEqual,
     EOF,
 }
 
@@ -50,6 +52,8 @@ impl Display for TokenType {
             Self::Slash => "SLASH",
             Self::Equal => "EQUAL",
             Self::Assign => "EQUAL_EQUAL",
+            Self::Bang => "BANG",
+            Self::BangEqual => "BANG_EQUAL",
             Self::EOF => "EOF",
         };
 
@@ -133,6 +137,21 @@ pub fn tokenize(content: String) {
                 _ => Some(Token {
                     token_type: TokenType::Equal,
                     lexeme: "=",
+                    literal: None,
+                }),
+            },
+            '!' => match chars.peek() {
+                Some('=') => {
+                    chars.next();
+                    Some(Token {
+                        token_type: TokenType::BangEqual,
+                        lexeme: "!=",
+                        literal: None,
+                    })
+                }
+                _ => Some(Token {
+                    token_type: TokenType::Bang,
+                    lexeme: "!",
                     literal: None,
                 }),
             },
