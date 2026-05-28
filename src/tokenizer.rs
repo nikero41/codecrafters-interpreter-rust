@@ -216,6 +216,7 @@ pub fn tokenize(content: String) {
                     literal: None,
                 }),
             },
+            ' ' | '\t' => None,
             '\n' => {
                 current_line += 1;
                 None
