@@ -30,6 +30,7 @@ enum TokenType {
     Minus,
     Slash,
     Equal,
+    Assign,
     EOF,
 }
 
@@ -48,6 +49,7 @@ impl Display for TokenType {
             Self::Minus => "MINUS",
             Self::Slash => "SLASH",
             Self::Equal => "EQUAL",
+            Self::Assign => "EQUAL_EQUAL",
             Self::EOF => "EOF",
         };
 
@@ -58,9 +60,12 @@ impl Display for TokenType {
 pub fn tokenize(content: String) {
     let mut current_line = 1;
 
-    let tokens: Vec<Option<Token>> = content
-        .chars()
-        .map(|char| match char {
+    let mut chars = content.chars().peekable();
+
+    let mut tokens: Vec<Option<Token>> = Vec::new();
+
+    while let Some(char) = chars.next() {
+        let token = match char {
             '(' => Some(Token {
                 token_type: TokenType::LeftParen,
                 lexeme: "(",
@@ -116,11 +121,21 @@ pub fn tokenize(content: String) {
                 lexeme: "/",
                 literal: None,
             }),
-            '=' => Some(Token {
-                token_type: TokenType::Equal,
-                lexeme: "=",
-                literal: None,
-            }),
+            '=' => match chars.peek() {
+                Some('=') => {
+                    chars.next();
+                    Some(Token {
+                        token_type: TokenType::Assign,
+                        lexeme: "==",
+                        literal: None,
+                    })
+                }
+                _ => Some(Token {
+                    token_type: TokenType::Equal,
+                    lexeme: "=",
+                    literal: None,
+                }),
+            },
             '\n' => {
                 current_line += 1;
                 None
@@ -129,13 +144,16 @@ pub fn tokenize(content: String) {
                 eprintln!("[line {}] Error: Unexpected character: {}", current_line, x);
                 None
             }
-        })
-        .chain([Some(Token {
-            token_type: TokenType::EOF,
-            lexeme: "",
-            literal: None,
-        })])
-        .collect();
+        };
+
+        tokens.push(token);
+    }
+
+    tokens.push(Some(Token {
+        token_type: TokenType::EOF,
+        lexeme: "",
+        literal: None,
+    }));
 
     let failed = tokens.iter().any(|token| token.is_none());
 
