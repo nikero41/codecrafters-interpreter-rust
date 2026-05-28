@@ -138,6 +138,7 @@ pub fn tokenize(content: String) {
                     let mut comment = String::new();
                     while let Some(char) = chars.next() {
                         if char == '\n' {
+                            current_line += 1;
                             break;
                         }
                         comment.push(char);
