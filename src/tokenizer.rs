@@ -3,12 +3,12 @@ use std::fmt::Display;
 pub struct Token<'a> {
     token_type: TokenType,
     lexeme: &'a str,
-    literal: Option<&'a str>,
+    literal: Option<String>,
 }
 
 impl<'a> Display for Token<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let literal = match self.literal {
+        let literal = match &self.literal {
             Some(literal) => literal,
             None => "null",
         };
@@ -37,6 +37,7 @@ enum TokenType {
     LessEqual,
     Greater,
     GreaterEqual,
+    Comment,
     EOF,
 }
 
@@ -62,6 +63,7 @@ impl Display for TokenType {
             Self::LessEqual => "LESS_EQUAL",
             Self::Greater => "GREATER",
             Self::GreaterEqual => "GREATER_EQUAL",
+            Self::Comment => "COMMENT",
             Self::EOF => "EOF",
         };
 
@@ -71,6 +73,7 @@ impl Display for TokenType {
 
 pub fn tokenize(content: String) {
     let mut current_line = 1;
+    let mut failed = false;
 
     let mut chars = content.chars().peekable();
 
@@ -128,11 +131,31 @@ pub fn tokenize(content: String) {
                 lexeme: "-",
                 literal: None,
             }),
-            '/' => Some(Token {
-                token_type: TokenType::Slash,
-                lexeme: "/",
-                literal: None,
-            }),
+            '/' => match chars.peek() {
+                Some('/') => {
+                    chars.next();
+
+                    let mut comment = String::new();
+                    while let Some(char) = chars.next() {
+                        if char == '\n' {
+                            break;
+                        }
+                        comment.push(char);
+                    }
+
+                    None
+                    // Some(Token {
+                    //     token_type: TokenType::Comment,
+                    //     lexeme: "//",
+                    //     literal: Some(comment.trim().to_string()),
+                    // })
+                }
+                _ => Some(Token {
+                    token_type: TokenType::Slash,
+                    lexeme: "/",
+                    literal: None,
+                }),
+            },
             '=' => match chars.peek() {
                 Some('=') => {
                     chars.next();
@@ -199,6 +222,7 @@ pub fn tokenize(content: String) {
             }
             x => {
                 eprintln!("[line {}] Error: Unexpected character: {}", current_line, x);
+                failed = true;
                 None
             }
         };
@@ -211,8 +235,6 @@ pub fn tokenize(content: String) {
         lexeme: "",
         literal: None,
     }));
-
-    let failed = tokens.iter().any(|token| token.is_none());
 
     tokens
         .into_iter()
