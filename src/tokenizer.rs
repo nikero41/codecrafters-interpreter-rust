@@ -33,6 +33,10 @@ enum TokenType {
     Assign,
     Bang,
     BangEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
     EOF,
 }
 
@@ -54,6 +58,10 @@ impl Display for TokenType {
             Self::Assign => "EQUAL_EQUAL",
             Self::Bang => "BANG",
             Self::BangEqual => "BANG_EQUAL",
+            Self::Less => "LESS",
+            Self::LessEqual => "LESS_EQUAL",
+            Self::Greater => "GREATER",
+            Self::GreaterEqual => "GREATER_EQUAL",
             Self::EOF => "EOF",
         };
 
@@ -152,6 +160,36 @@ pub fn tokenize(content: String) {
                 _ => Some(Token {
                     token_type: TokenType::Bang,
                     lexeme: "!",
+                    literal: None,
+                }),
+            },
+            '<' => match chars.peek() {
+                Some('=') => {
+                    chars.next();
+                    Some(Token {
+                        token_type: TokenType::LessEqual,
+                        lexeme: "<=",
+                        literal: None,
+                    })
+                }
+                _ => Some(Token {
+                    token_type: TokenType::Less,
+                    lexeme: "<",
+                    literal: None,
+                }),
+            },
+            '>' => match chars.peek() {
+                Some('=') => {
+                    chars.next();
+                    Some(Token {
+                        token_type: TokenType::GreaterEqual,
+                        lexeme: ">=",
+                        literal: None,
+                    })
+                }
+                _ => Some(Token {
+                    token_type: TokenType::Greater,
+                    lexeme: ">",
                     literal: None,
                 }),
             },
