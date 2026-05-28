@@ -1,12 +1,12 @@
 use std::fmt::Display;
 
-pub struct Token<'a> {
+pub struct Token {
     token_type: TokenType,
-    lexeme: &'a str,
+    lexeme: String,
     literal: Option<String>,
 }
 
-impl<'a> Display for Token<'a> {
+impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let literal = match &self.literal {
             Some(literal) => literal,
@@ -37,7 +37,7 @@ enum TokenType {
     LessEqual,
     Greater,
     GreaterEqual,
-    Comment,
+    String,
     EOF,
 }
 
@@ -63,7 +63,7 @@ impl Display for TokenType {
             Self::LessEqual => "LESS_EQUAL",
             Self::Greater => "GREATER",
             Self::GreaterEqual => "GREATER_EQUAL",
-            Self::Comment => "COMMENT",
+            Self::String => "STRING",
             Self::EOF => "EOF",
         };
 
@@ -83,52 +83,52 @@ pub fn tokenize(content: String) {
         let token = match char {
             '(' => Some(Token {
                 token_type: TokenType::LeftParen,
-                lexeme: "(",
+                lexeme: "(".to_string(),
                 literal: None,
             }),
             ')' => Some(Token {
                 token_type: TokenType::RightParen,
-                lexeme: ")",
+                lexeme: ")".to_string(),
                 literal: None,
             }),
             '{' => Some(Token {
                 token_type: TokenType::LeftBrace,
-                lexeme: "{",
+                lexeme: "{".to_string(),
                 literal: None,
             }),
             '}' => Some(Token {
                 token_type: TokenType::RightBrace,
-                lexeme: "}",
+                lexeme: "}".to_string(),
                 literal: None,
             }),
             '*' => Some(Token {
                 token_type: TokenType::Star,
-                lexeme: "*",
+                lexeme: "*".to_string(),
                 literal: None,
             }),
             '.' => Some(Token {
                 token_type: TokenType::Dot,
-                lexeme: ".",
+                lexeme: ".".to_string(),
                 literal: None,
             }),
             ',' => Some(Token {
                 token_type: TokenType::Comma,
-                lexeme: ",",
+                lexeme: ",".to_string(),
                 literal: None,
             }),
             '+' => Some(Token {
                 token_type: TokenType::Plus,
-                lexeme: "+",
+                lexeme: "+".to_string(),
                 literal: None,
             }),
             ';' => Some(Token {
                 token_type: TokenType::SemiColon,
-                lexeme: ";",
+                lexeme: ";".to_string(),
                 literal: None,
             }),
             '-' => Some(Token {
                 token_type: TokenType::Minus,
-                lexeme: "-",
+                lexeme: "-".to_string(),
                 literal: None,
             }),
             '/' => match chars.peek() {
@@ -145,15 +145,10 @@ pub fn tokenize(content: String) {
                     }
 
                     None
-                    // Some(Token {
-                    //     token_type: TokenType::Comment,
-                    //     lexeme: "//",
-                    //     literal: Some(comment.trim().to_string()),
-                    // })
                 }
                 _ => Some(Token {
                     token_type: TokenType::Slash,
-                    lexeme: "/",
+                    lexeme: "/".to_string(),
                     literal: None,
                 }),
             },
@@ -162,13 +157,13 @@ pub fn tokenize(content: String) {
                     chars.next();
                     Some(Token {
                         token_type: TokenType::Assign,
-                        lexeme: "==",
+                        lexeme: "==".to_string(),
                         literal: None,
                     })
                 }
                 _ => Some(Token {
                     token_type: TokenType::Equal,
-                    lexeme: "=",
+                    lexeme: "=".to_string(),
                     literal: None,
                 }),
             },
@@ -177,13 +172,13 @@ pub fn tokenize(content: String) {
                     chars.next();
                     Some(Token {
                         token_type: TokenType::BangEqual,
-                        lexeme: "!=",
+                        lexeme: "!=".to_string(),
                         literal: None,
                     })
                 }
                 _ => Some(Token {
                     token_type: TokenType::Bang,
-                    lexeme: "!",
+                    lexeme: "!".to_string(),
                     literal: None,
                 }),
             },
@@ -192,13 +187,13 @@ pub fn tokenize(content: String) {
                     chars.next();
                     Some(Token {
                         token_type: TokenType::LessEqual,
-                        lexeme: "<=",
+                        lexeme: "<=".to_string(),
                         literal: None,
                     })
                 }
                 _ => Some(Token {
                     token_type: TokenType::Less,
-                    lexeme: "<",
+                    lexeme: "<".to_string(),
                     literal: None,
                 }),
             },
@@ -207,16 +202,42 @@ pub fn tokenize(content: String) {
                     chars.next();
                     Some(Token {
                         token_type: TokenType::GreaterEqual,
-                        lexeme: ">=",
+                        lexeme: ">=".to_string(),
                         literal: None,
                     })
                 }
                 _ => Some(Token {
                     token_type: TokenType::Greater,
-                    lexeme: ">",
+                    lexeme: ">".to_string(),
                     literal: None,
                 }),
             },
+            '"' => {
+                let mut literal = String::new();
+                let mut determined = false;
+                while let Some(char) = chars.next() {
+                    match char {
+                        '\n' => break,
+                        '"' => {
+                            determined = true;
+                            break;
+                        }
+                        char => literal.push(char),
+                    };
+                }
+
+                if determined {
+                    Some(Token {
+                        token_type: TokenType::String,
+                        lexeme: format!(r#""{}""#, literal.to_string()),
+                        literal: Some(literal.to_string()),
+                    })
+                } else {
+                    eprintln!("[line {}] Error: Unterminated string.", current_line);
+                    failed = true;
+                    None
+                }
+            }
             ' ' | '\t' => None,
             '\n' => {
                 current_line += 1;
@@ -234,7 +255,7 @@ pub fn tokenize(content: String) {
 
     tokens.push(Some(Token {
         token_type: TokenType::EOF,
-        lexeme: "",
+        lexeme: String::new(),
         literal: None,
     }));
 
