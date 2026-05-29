@@ -38,6 +38,7 @@ enum TokenType {
     Greater,
     GreaterEqual,
     String,
+    Number,
     EOF,
 }
 
@@ -64,6 +65,7 @@ impl Display for TokenType {
             Self::Greater => "GREATER",
             Self::GreaterEqual => "GREATER_EQUAL",
             Self::String => "STRING",
+            Self::Number => "NUMBER",
             Self::EOF => "EOF",
         };
 
@@ -235,6 +237,47 @@ pub fn tokenize(content: String) {
                 } else {
                     eprintln!("[line {}] Error: Unterminated string.", current_line);
                     failed = true;
+                    None
+                }
+            }
+            x if x.is_numeric() => {
+                let mut literal = x.to_string();
+                let mut is_valid = true;
+
+                while let Some(&char) = chars.peek()
+                    && (char == '.' || char.is_numeric())
+                {
+                    match chars.next() {
+                        Some('.') => {
+                            if let Some(num) = chars.peek()
+                                && num.is_numeric()
+                            {
+                                literal.push('.')
+                            } else {
+                                is_valid = false;
+                                failed = true;
+                                break;
+                            }
+                        }
+                        Some(x) if x.is_numeric() => literal.push(x),
+                        _ => {}
+                    }
+                }
+
+                if is_valid {
+                    match literal.parse::<f64>() {
+                        Ok(float) => Some(Token {
+                            token_type: TokenType::Number,
+                            lexeme: literal.to_string(),
+                            literal: Some(format!("{:?}", float)),
+                        }),
+                        Err(_) => {
+                            eprintln!("[line {}] Error: Invalid number: {}", current_line, literal);
+                            None
+                        }
+                    }
+                } else {
+                    eprintln!("[line {}] Error: Invalid number: {}", current_line, literal);
                     None
                 }
             }

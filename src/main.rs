@@ -2,7 +2,7 @@
 use std::env;
 use std::fs;
 
-mod tokenizer;
+use codecrafters_interpreter::tokenizer;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
