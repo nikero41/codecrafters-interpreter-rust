@@ -1,5 +1,5 @@
-use std::fs;
 use std::path::PathBuf;
+use std::{fs, io::Write};
 
 use codecrafters_interpreter::lexer;
 
@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 #[command(version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -25,7 +25,25 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Tokenize { path } => {
+        None => {
+            let stdin = std::io::stdin();
+            loop {
+                print!("> ");
+                std::io::stdout().flush().unwrap();
+                let mut buf = String::new();
+                match stdin.read_line(&mut buf) {
+                    Ok(_) => {
+                        let tokens = lexer::tokenize(buf);
+                        tokens.iter().for_each(|token| match token {
+                            Ok(token) => println!("{}", token),
+                            Err(err) => eprintln!("{}", err),
+                        });
+                    }
+                    Err(error) => eprintln!("Error: {error}"),
+                }
+            }
+        }
+        Some(Commands::Tokenize { path }) => {
             let file_contents = fs::read_to_string(&path).unwrap_or_else(|_| {
                 eprintln!("Failed to read file {}", path.display());
                 String::new()
