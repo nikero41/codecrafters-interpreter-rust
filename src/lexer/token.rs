@@ -55,7 +55,7 @@ impl TokenType {
             Self::String(_) => "STRING".to_string(),
             Self::Number(_) => "NUMBER".to_string(),
             Self::Identifier(_) => "IDENTIFIER".to_string(),
-            Self::Keyword(_) => "KEYWORD".to_string(),
+            Self::Keyword(keyword) => format!("{}", keyword).to_uppercase(),
             Self::EOF => "EOF".to_string(),
         }
     }

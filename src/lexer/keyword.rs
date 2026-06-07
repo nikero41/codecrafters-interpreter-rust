@@ -24,24 +24,25 @@ pub enum Keyword {
 
 impl Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Keyword::And => todo!(),
-            Keyword::Class => todo!(),
-            Keyword::Else => todo!(),
-            Keyword::False => todo!(),
-            Keyword::For => todo!(),
-            Keyword::Fun => todo!(),
-            Keyword::If => todo!(),
-            Keyword::Nil => todo!(),
-            Keyword::Or => todo!(),
-            Keyword::Print => todo!(),
-            Keyword::Return => todo!(),
-            Keyword::Super => todo!(),
-            Keyword::This => todo!(),
-            Keyword::True => todo!(),
-            Keyword::Var => todo!(),
-            Keyword::While => todo!(),
-        }
+        let keyword = match self {
+            Keyword::And => "and",
+            Keyword::Class => "class",
+            Keyword::Else => "else",
+            Keyword::False => "false",
+            Keyword::For => "for",
+            Keyword::Fun => "fun",
+            Keyword::If => "if",
+            Keyword::Nil => "nil",
+            Keyword::Or => "or",
+            Keyword::Print => "print",
+            Keyword::Return => "return",
+            Keyword::Super => "super",
+            Keyword::This => "this",
+            Keyword::True => "true",
+            Keyword::Var => "var",
+            Keyword::While => "while",
+        };
+        write!(f, "{}", keyword)
     }
 }
 

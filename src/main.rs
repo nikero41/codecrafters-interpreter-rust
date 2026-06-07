@@ -33,8 +33,7 @@ fn main() {
                 let mut buf = String::new();
                 match stdin.read_line(&mut buf) {
                     Ok(_) => {
-                        let tokens = lexer::tokenize(buf);
-                        tokens.iter().for_each(|token| match token {
+                        lexer::tokenize(buf).iter().for_each(|token| match token {
                             Ok(token) => println!("{}", token),
                             Err(err) => eprintln!("{}", err),
                         });
@@ -49,16 +48,16 @@ fn main() {
                 String::new()
             });
 
-            let tokens = lexer::tokenize(file_contents);
-
             let mut failed = false;
-            tokens.iter().for_each(|token| match token {
-                Ok(token) => println!("{}", token),
-                Err(err) => {
-                    failed = true;
-                    eprintln!("{}", err)
-                }
-            });
+            lexer::tokenize(file_contents)
+                .iter()
+                .for_each(|token| match token {
+                    Ok(token) => println!("{}", token),
+                    Err(err) => {
+                        failed = true;
+                        eprintln!("{}", err)
+                    }
+                });
 
             if failed {
                 std::process::exit(65)
