@@ -1,32 +1,50 @@
-#![allow(unused_variables)]
-use std::env;
 use std::fs;
+use std::path::PathBuf;
 
-use codecrafters_interpreter::tokenizer;
+use codecrafters_interpreter::lexer;
+
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Display the tokens of the file
+    Tokenize {
+        #[arg(value_name = "FILE", default_value = "main.lox")]
+        path: PathBuf,
+    },
+}
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        eprintln!("Usage: {} tokenize <filename>", args[0]);
-        return;
-    }
+    let cli = Cli::parse();
 
-    let command = &args[1];
-    let filename = &args[2];
-
-    match command.as_str() {
-        "tokenize" => {
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                eprintln!("Failed to read file {}", filename);
+    match cli.command {
+        Commands::Tokenize { path } => {
+            let file_contents = fs::read_to_string(&path).unwrap_or_else(|_| {
+                eprintln!("Failed to read file {}", path.display());
                 String::new()
             });
 
-            if !file_contents.is_empty() {
-                tokenizer::tokenize(file_contents);
-            } else {
-                println!("EOF  null"); // Placeholder, replace this line when implementing the scanner
+            let tokens = lexer::tokenize(file_contents);
+
+            let mut failed = false;
+            tokens.iter().for_each(|token| match token {
+                Ok(token) => println!("{}", token),
+                Err(err) => {
+                    failed = true;
+                    eprintln!("{}", err)
+                }
+            });
+
+            if failed {
+                std::process::exit(65)
             }
         }
-        _ => eprintln!("Unknown command: {}", command),
     }
 }
