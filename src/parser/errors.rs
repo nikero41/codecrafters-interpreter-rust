@@ -3,6 +3,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum ParseError {
-    #[error("EOF reached")]
-    Eof,
+    #[error("Placeholder")]
+    Placeholder,
+    #[error("[line {line}] Error: Unterminated paren.")]
+    UnterminatedParen { line: u32 },
 }

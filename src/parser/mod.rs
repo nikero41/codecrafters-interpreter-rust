@@ -126,27 +126,60 @@ impl Parser {
     fn primary(&mut self) -> Result<Expr, ParseError> {
         let token = self.peek();
 
+        let mut should_advance = false;
+
         if let Some(token) = token {
-            match &token.token_type {
-                TokenType::Number(float) => Ok(Expr::Literal(Literal::Number(
-                    float.parse::<f64>().unwrap(),
-                ))),
-                TokenType::String(literal) => Ok(Expr::Literal(Literal::String(literal.clone()))),
-                TokenType::Keyword(Keyword::True) => Ok(Expr::Literal(Literal::Bool(true))),
-                TokenType::Keyword(Keyword::False) => Ok(Expr::Literal(Literal::Bool(false))),
-                TokenType::Keyword(Keyword::Nil) => Ok(Expr::Literal(Literal::Nil)),
+            let expr = match &token.token_type {
+                TokenType::Number(float) => {
+                    should_advance = true;
+                    Ok(Expr::Literal(Literal::Number(
+                        float.parse::<f64>().unwrap(),
+                    )))
+                }
+                TokenType::String(literal) => {
+                    should_advance = true;
+                    Ok(Expr::Literal(Literal::String(literal.clone())))
+                }
+                TokenType::Keyword(Keyword::True) => {
+                    should_advance = true;
+                    Ok(Expr::Literal(Literal::Bool(true)))
+                }
+                TokenType::Keyword(Keyword::False) => {
+                    should_advance = true;
+                    Ok(Expr::Literal(Literal::Bool(false)))
+                }
+                TokenType::Keyword(Keyword::Nil) => {
+                    should_advance = true;
+                    Ok(Expr::Literal(Literal::Nil))
+                }
+                TokenType::Identifier(identifier) => {
+                    should_advance = true;
+                    Ok(Expr::Literal(Literal::String(identifier.to_string())))
+                }
                 TokenType::LeftParen => {
+                    let token_line = token.line;
+                    self.next();
                     let expr = self.expression()?;
                     if self.match_tokens(&[TokenType::RightParen]).is_some() {
                         Ok(Expr::Grouping(Box::new(expr)))
                     } else {
-                        Err(ParseError::Eof)
+                        println!("🪚 ⭕");
+                        return Err(ParseError::UnterminatedParen { line: token_line });
                     }
                 }
-                _ => Err(ParseError::Eof),
+                _ => {
+                    println!("🪚 ⭐");
+                    Err(ParseError::Placeholder)
+                }
+            };
+
+            if should_advance {
+                self.next();
             }
+
+            expr
         } else {
-            Err(ParseError::Eof)
+            Err(ParseError::Placeholder)
         }
     }
 }

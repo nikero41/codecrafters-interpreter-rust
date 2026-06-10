@@ -5,7 +5,7 @@ use crate::lexer::keyword::Keyword;
 #[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
-    line: u32,
+    pub line: u32,
     column: u32,
 }
 
