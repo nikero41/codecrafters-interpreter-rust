@@ -176,9 +176,32 @@ impl Parser {
             Err(ParseError::Placeholder)
         }
     }
+
+    fn synchronize(&mut self) {
+        while None
+            == self.match_tokens(&[
+                TokenType::Keyword(Keyword::Class),
+                TokenType::Keyword(Keyword::Fun),
+                TokenType::Keyword(Keyword::Var),
+                TokenType::Keyword(Keyword::For),
+                TokenType::Keyword(Keyword::If),
+                TokenType::Keyword(Keyword::While),
+                TokenType::Keyword(Keyword::Print),
+                TokenType::Keyword(Keyword::Return),
+            ])
+        {
+            self.next();
+        }
+    }
 }
 
 pub fn parse(tokens: Vec<Token>) -> Result<Expr, ParseError> {
     let mut parser = Parser::new(tokens);
-    parser.expression()
+    match parser.expression() {
+        Ok(expr) => Ok(expr),
+        Err(err) => {
+            parser.synchronize();
+            Err(err)
+        }
+    }
 }

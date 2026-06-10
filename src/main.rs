@@ -78,18 +78,23 @@ fn main() -> Result<()> {
             });
 
             let result = lexer::tokenize(&file_contents);
-            let (tokens, errors): (Vec<_>, Vec<_>) = result.into_iter().partition(Result::is_ok);
 
-            let error_count = errors
+            let mut failed = false;
+            let tokens = result
                 .into_iter()
-                .filter_map(|result| result.err())
-                .inspect(|err| eprintln!("{:?}", err))
-                .count();
-            if error_count > 0 {
+                .filter_map(|result| match result {
+                    Ok(token) => Some(token),
+                    Err(err) => {
+                        failed = true;
+                        eprintln!("{}", err);
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            if failed {
                 std::process::exit(65)
             }
 
-            let tokens = tokens.into_iter().map(Result::unwrap).collect();
             let result = parser::parse(tokens);
             match result {
                 Ok(expr) => println!("{}", expr),

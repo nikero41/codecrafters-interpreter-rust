@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::lexer::keyword::Keyword;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub line: u32,
