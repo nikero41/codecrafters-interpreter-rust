@@ -1,13 +1,12 @@
 use std::{iter::Peekable, str::Chars};
 
-use errors::ParseError;
-use token::TokenType;
-
-use crate::lexer::keyword::{Keyword, SPECIAL_START_CHARS};
+pub use errors::ScanError;
+use keyword::{Keyword, SPECIAL_START_CHARS};
+use token::{Token, TokenType};
 
 mod errors;
-mod keyword;
-mod token;
+pub mod keyword;
+pub mod token;
 
 struct Scanner<'a> {
     cursor: Peekable<Chars<'a>>,
@@ -16,7 +15,7 @@ struct Scanner<'a> {
 }
 
 impl<'a> Scanner<'a> {
-    fn new(content: &'a String) -> Self {
+    fn new(content: &'a str) -> Self {
         Self {
             cursor: content.chars().peekable(),
             current_line: 1,
@@ -34,47 +33,33 @@ impl<'a> Scanner<'a> {
         next_char
     }
 
-    fn match_next(&mut self, mather: char) -> bool {
-        match self.cursor.peek() {
-            Some(next) if next == &mather => {
-                self.cursor.next();
-                true
-            }
-            _ => false,
+    fn parse_until_eq(&mut self, terminator: &[char]) -> String {
+        let mut literal = String::new();
+        while let Some(char) = self.cursor.next_if(|char| !terminator.contains(char)) {
+            literal.push(char);
         }
+        literal
     }
 
-    fn parse_until(&mut self, literal: &mut String, terminator: &[char]) -> Result<(), ParseError> {
-        loop {
-            match self.cursor.peek() {
-                Some(char) if terminator.contains(&char) => return Ok(()),
-                Some(_) => literal.push(self.cursor.next().unwrap()),
-                None => return Err(ParseError::EOF),
-            };
-        }
-    }
-
-    fn parse_if<T>(&mut self, literal: &mut String, condition: T) -> Result<(), ParseError>
+    fn parse_until<T>(&mut self, condition: T) -> String
     where
         T: Fn(&char) -> bool,
     {
-        loop {
-            match self.cursor.peek() {
-                Some(char) if !condition(char) => return Ok(()),
-                Some(_) => literal.push(self.cursor.next().unwrap()),
-                None => return Err(ParseError::EOF),
-            };
+        let mut literal = String::new();
+        while let Some(char) = self.cursor.next_if(&condition) {
+            literal.push(char)
         }
+        literal
     }
 }
 
-pub fn tokenize(content: String) -> Vec<Result<TokenType, ParseError>> {
-    let mut scanner = Scanner::new(&content);
+pub fn tokenize(content: &str) -> Vec<Result<Token, ScanError>> {
+    let mut scanner = Scanner::new(content);
 
-    let mut tokens: Vec<Result<TokenType, ParseError>> = Vec::new();
+    let mut tokens: Vec<Result<Token, ScanError>> = Vec::new();
 
     while let Some(char) = scanner.next() {
-        let token = match char {
+        let token_type = match char {
             ' ' | '\t' | '\n' => continue,
             '(' => Ok(TokenType::LeftParen),
             ')' => Ok(TokenType::RightParen),
@@ -86,74 +71,83 @@ pub fn tokenize(content: String) -> Vec<Result<TokenType, ParseError>> {
             '+' => Ok(TokenType::Plus),
             ';' => Ok(TokenType::SemiColon),
             '-' => Ok(TokenType::Minus),
-            '/' => match scanner.match_next('/') {
-                true => {
-                    let _ = scanner.parse_until(&mut String::new(), &['\n']);
+            '/' => match scanner.cursor.next_if_eq(&'/') {
+                Some(_) => {
+                    let _ = scanner.parse_until_eq(&['\n']);
                     continue;
                 }
-                false => Ok(TokenType::Slash),
+                None => Ok(TokenType::Slash),
             },
-            '=' => match scanner.match_next('=') {
-                true => Ok(TokenType::Equal),
-                false => Ok(TokenType::Assign),
+            '=' => match scanner.cursor.next_if_eq(&'=') {
+                Some(_) => Ok(TokenType::Equal),
+                None => Ok(TokenType::Assign),
             },
-            '!' => match scanner.match_next('=') {
-                true => Ok(TokenType::BangEqual),
-                false => Ok(TokenType::Bang),
+            '!' => match scanner.cursor.next_if_eq(&'=') {
+                Some(_) => Ok(TokenType::BangEqual),
+                None => Ok(TokenType::Bang),
             },
-            '<' => match scanner.match_next('=') {
-                true => Ok(TokenType::LessEqual),
-                false => Ok(TokenType::Less),
+            '<' => match scanner.cursor.next_if_eq(&'=') {
+                Some(_) => Ok(TokenType::LessEqual),
+                None => Ok(TokenType::Less),
             },
-            '>' => match scanner.match_next('=') {
-                true => Ok(TokenType::GreaterEqual),
-                false => Ok(TokenType::Greater),
+            '>' => match scanner.cursor.next_if_eq(&'=') {
+                Some(_) => Ok(TokenType::GreaterEqual),
+                None => Ok(TokenType::Greater),
             },
             '"' => {
-                let mut literal = String::new();
-                let _ = scanner.parse_until(&mut literal, &['\n', '"']);
+                let literal = scanner.parse_until_eq(&['\n', '"']);
 
-                match scanner.match_next('"') {
-                    true => Ok(TokenType::String(literal)),
-                    false => Err(ParseError::UnterminatedString {
+                match scanner.cursor.next_if_eq(&'"') {
+                    Some(_) => Ok(TokenType::String(literal)),
+                    None => Err(ScanError::UnterminatedString {
                         line: scanner.current_line,
+                        span: (22..25).into(),
                         string: literal,
                     }),
                 }
             }
             x if x.is_numeric() => {
-                let mut literal = String::from(x);
-                let _ = scanner.parse_if(&mut literal, |char| char.is_numeric());
+                let result = scanner.parse_until(|char| char.is_numeric());
 
-                match scanner.match_next('.') {
-                    true => {
-                        literal.push('.');
-                        let _ = scanner.parse_if(&mut literal, |char| char.is_numeric());
+                let mut literal = String::from(x);
+                literal.push_str(&result);
+
+                match scanner.cursor.next_if_eq(&'.') {
+                    Some(char) => {
+                        literal.push(char);
+                        let result = scanner.parse_until(|char| char.is_numeric());
+                        literal.push_str(&result);
                         Ok(TokenType::Number(literal))
                     }
-                    false => Ok(TokenType::Number(literal)),
+                    None => Ok(TokenType::Number(literal)),
                 }
             }
             x if x.is_alphabetic() || SPECIAL_START_CHARS.contains(&x) => {
+                let result = scanner.parse_until(|char| char.is_alphanumeric() || char == &'_');
+
                 let mut literal = String::from(x);
-                let _ =
-                    scanner.parse_if(&mut literal, |char| char.is_alphanumeric() || char == &'_');
+                literal.push_str(&result);
 
                 match literal.parse::<Keyword>() {
                     Ok(keyword) => Ok(TokenType::Keyword(keyword)),
                     Err(_) => Ok(TokenType::Identifier(literal)),
                 }
             }
-            x => Err(ParseError::InvalidCharacter {
+            x => Err(ScanError::InvalidCharacter {
                 line: scanner.current_line,
                 character: x,
             }),
         };
 
+        let token = token_type
+            .map(|token_type| token_type.to_token(scanner.current_line, scanner.current_column));
+
         tokens.push(token);
     }
 
-    tokens.push(Ok(TokenType::EOF));
+    tokens.push(Ok(
+        TokenType::EOF.to_token(scanner.current_line, scanner.current_column)
+    ));
 
     tokens
 }

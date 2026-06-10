@@ -3,6 +3,29 @@ use std::fmt::Display;
 use crate::lexer::keyword::Keyword;
 
 #[derive(Debug)]
+pub struct Token {
+    pub token_type: TokenType,
+    line: u32,
+    column: u32,
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.token_type)
+    }
+}
+
+impl TokenType {
+    pub fn to_token(self, line: u32, column: u32) -> Token {
+        Token {
+            token_type: self,
+            line,
+            column,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum TokenType {
     LeftParen,
     RightParen,
@@ -31,7 +54,7 @@ pub enum TokenType {
 }
 
 impl TokenType {
-    fn name(&self) -> String {
+    pub fn name(&self) -> String {
         match self {
             Self::LeftParen => "LEFT_PAREN".to_string(),
             Self::RightParen => "RIGHT_PAREN".to_string(),
@@ -60,7 +83,7 @@ impl TokenType {
         }
     }
 
-    fn lexeme(&self) -> String {
+    pub fn lexeme(&self) -> String {
         match self {
             Self::LeftParen => "(".to_string(),
             Self::RightParen => ")".to_string(),
@@ -82,14 +105,14 @@ impl TokenType {
             Self::Greater => ">".to_string(),
             Self::GreaterEqual => ">=".to_string(),
             Self::String(literal) => format!(r#""{}""#, literal),
-            Self::Number(float) => format!("{}", float),
-            Self::Identifier(identifier) => format!("{}", identifier),
+            Self::Number(float) => float.to_string(),
+            Self::Identifier(identifier) => identifier.to_string(),
             Self::Keyword(keyword) => format!("{}", keyword),
             Self::EOF => String::new(),
         }
     }
 
-    fn literal(&self) -> String {
+    pub fn literal(&self) -> String {
         match self {
             Self::String(literal) => literal.clone(),
             Self::Number(float) => format!("{:?}", float.parse::<f64>().unwrap()),

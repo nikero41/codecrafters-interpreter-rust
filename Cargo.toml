@@ -1,3 +1,5 @@
+#:schema https://json.schemastore.org/cargo.json
+
 [package]
 name = "codecrafters-interpreter"
 version = "0.1.0"
@@ -9,3 +11,5 @@ anyhow = "1.0.68"
 bytes = "1.3.0"
 thiserror = "2.0.18"
 clap = { version = "4.1.4", features = ["derive", "string"] }
+itertools = "0.14.0"
+miette = { version = "7.6.0", features = ["fancy"] }
