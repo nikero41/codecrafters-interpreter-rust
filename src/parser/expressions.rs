@@ -49,7 +49,7 @@ impl Display for Expr {
         match self {
             Expr::Literal(literal) => match literal {
                 Literal::Number(float) => write!(f, "{:?}", float),
-                Literal::String(literal) => write!(f, "\"{}\"", literal),
+                Literal::String(literal) => write!(f, "{}", literal),
                 Literal::Bool(boolean) => {
                     if *boolean {
                         write!(f, "true")
