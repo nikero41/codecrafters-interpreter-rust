@@ -90,7 +90,14 @@ fn main() -> Result<()> {
             }
 
             let tokens = tokens.into_iter().map(Result::unwrap).collect();
-            let _ = parser::parse(tokens)?;
+            let result = parser::parse(tokens);
+            match result {
+                Ok(expr) => println!("{}", expr),
+                Err(err) => {
+                    eprintln!("{}", err);
+                    std::process::exit(65);
+                }
+            }
         }
     }
 

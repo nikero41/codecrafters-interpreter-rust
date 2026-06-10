@@ -125,7 +125,6 @@ impl Parser {
     // primary → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
     fn primary(&mut self) -> Result<Expr, ParseError> {
         let token = self.peek();
-
         let mut should_advance = false;
 
         if let Some(token) = token {
@@ -163,20 +162,15 @@ impl Parser {
                     if self.match_tokens(&[TokenType::RightParen]).is_some() {
                         Ok(Expr::Grouping(Box::new(expr)))
                     } else {
-                        println!("🪚 ⭕");
-                        return Err(ParseError::UnterminatedParen { line: token_line });
+                        Err(ParseError::UnterminatedParen { line: token_line })
                     }
                 }
-                _ => {
-                    println!("🪚 ⭐");
-                    Err(ParseError::Placeholder)
-                }
+                _ => Err(ParseError::Placeholder),
             };
 
             if should_advance {
                 self.next();
             }
-
             expr
         } else {
             Err(ParseError::Placeholder)
@@ -184,11 +178,7 @@ impl Parser {
     }
 }
 
-pub fn parse(tokens: Vec<Token>) -> Result<(), ParseError> {
+pub fn parse(tokens: Vec<Token>) -> Result<Expr, ParseError> {
     let mut parser = Parser::new(tokens);
-
-    let result = parser.expression()?;
-    println!("{}", result);
-
-    Ok(())
+    parser.expression()
 }
