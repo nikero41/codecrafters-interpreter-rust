@@ -18,7 +18,7 @@ impl Display for LoxValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             LoxValue::Number { value, .. } => write!(f, "{}", value),
-            LoxValue::String { value, .. } => write!(f, "\"{}\"", value),
+            LoxValue::String { value, .. } => write!(f, "{}", value),
             LoxValue::Bool { value, .. } => write!(f, "{}", value),
             LoxValue::Nil { .. } => write!(f, "nil"),
             LoxValue::Object { .. } => write!(f, "object"),
