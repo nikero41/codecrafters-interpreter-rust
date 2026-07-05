@@ -61,7 +61,9 @@ fn add(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
         (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
             Ok(LoxValue::Number { value: a + b })
         }
-        (LoxValue::String { .. }, LoxValue::String { .. }) => todo!(),
+        (LoxValue::String { value: a }, LoxValue::String { value: b }) => Ok(LoxValue::String {
+            value: a.clone() + &b,
+        }),
 
         (..) => todo!(),
     }
