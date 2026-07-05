@@ -1,2 +1,8 @@
-pub mod lexer;
-pub mod parser;
+pub mod debug;
+pub mod expression;
+pub mod source_file;
+pub mod stages;
+pub mod token;
+pub mod values;
+
+pub const FANCY_ERROR: bool = false;

@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 pub const SPECIAL_START_CHARS: [char; 1] = ['_'];
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Keyword {
     And,
     Class,
@@ -22,32 +22,37 @@ pub enum Keyword {
     While,
 }
 
+impl Keyword {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Keyword::And => "AND",
+            Keyword::Class => "CLASS",
+            Keyword::Else => "ELSE",
+            Keyword::False => "FALSE",
+            Keyword::For => "FOR",
+            Keyword::Fun => "FUN",
+            Keyword::If => "IF",
+            Keyword::Nil => "NIL",
+            Keyword::Or => "OR",
+            Keyword::Print => "PRINT",
+            Keyword::Return => "RETURN",
+            Keyword::Super => "SUPER",
+            Keyword::This => "THIS",
+            Keyword::True => "TRUE",
+            Keyword::Var => "VAR",
+            Keyword::While => "WHILE",
+        }
+    }
+}
+
 impl Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let keyword = match self {
-            Keyword::And => "and",
-            Keyword::Class => "class",
-            Keyword::Else => "else",
-            Keyword::False => "false",
-            Keyword::For => "for",
-            Keyword::Fun => "fun",
-            Keyword::If => "if",
-            Keyword::Nil => "nil",
-            Keyword::Or => "or",
-            Keyword::Print => "print",
-            Keyword::Return => "return",
-            Keyword::Super => "super",
-            Keyword::This => "this",
-            Keyword::True => "true",
-            Keyword::Var => "var",
-            Keyword::While => "while",
-        };
-        write!(f, "{}", keyword)
+        write!(f, "{}", self.name().to_lowercase())
     }
 }
 
 impl FromStr for Keyword {
-    type Err = ();
+    type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -67,7 +72,7 @@ impl FromStr for Keyword {
             "true" => Ok(Keyword::True),
             "var" => Ok(Keyword::Var),
             "while" => Ok(Keyword::While),
-            _ => Err(()),
+            _ => Err("Invalid keyword"),
         }
     }
 }

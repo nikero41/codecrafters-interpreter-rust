@@ -1,12 +1,14 @@
-use clap::{Parser, Subcommand};
-use miette::{Context, IntoDiagnostic, NamedSource, Report, Result};
-use std::path::PathBuf;
-use std::{fs, io::Write};
+use clap::{Parser as ClapParser, Subcommand};
+use miette::Result;
+use std::{io::Write, path::PathBuf};
 
-use codecrafters_interpreter::lexer;
-use codecrafters_interpreter::parser;
+use codecrafters_interpreter::{
+    expression::interpret::Interpretable,
+    source_file::SourceFile,
+    stages::{Parser, Scanner, StageResult},
+};
 
-#[derive(Parser)]
+#[derive(ClapParser)]
 #[command(version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -25,6 +27,11 @@ enum Commands {
         #[arg(value_name = "FILE", default_value = "main.lox")]
         path: PathBuf,
     },
+    /// Evaluate file
+    Evaluate {
+        #[arg(value_name = "FILE", default_value = "main.lox")]
+        path: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -39,68 +46,65 @@ fn main() -> Result<()> {
                 std::io::stdout().flush().unwrap();
                 let mut buf = String::new();
                 match stdin.read_line(&mut buf) {
-                    Ok(_) => {
-                        lexer::tokenize(&buf).iter().for_each(|token| match token {
-                            Ok(token) => println!("{}", token),
-                            Err(err) => eprintln!("{}", err),
-                        });
-                    }
+                    Ok(_) => {}
                     Err(error) => eprintln!("Error: {error}"),
                 }
             }
         }
 
         Some(Commands::Tokenize { path }) => {
-            let file_content = fs::read_to_string(&path)
-                .into_diagnostic()
-                .wrap_err(format!("Failed to read file {}", path.display()))?;
+            let file = SourceFile::new(path)?;
 
-            let mut failed = false;
-            lexer::tokenize(&file_content)
-                .into_iter()
-                .for_each(|token| match token {
-                    Ok(token) => println!("{}", token),
-                    Err(err) => {
-                        failed = true;
-                        eprintln!("{}", err)
-                    }
-                });
-
-            if failed {
+            let mut scanner = Scanner::new(&file);
+            scanner.scan();
+            scanner.print();
+            if scanner.has_errors() {
                 std::process::exit(65)
             }
         }
 
         Some(Commands::Parse { path }) => {
-            let file_contents = fs::read_to_string(&path).unwrap_or_else(|_| {
-                eprintln!("Failed to read file {}", path.display());
-                String::new()
-            });
+            let file = SourceFile::new(path)?;
 
-            let result = lexer::tokenize(&file_contents);
+            let mut scanner = Scanner::new(&file);
+            scanner.scan();
+            if scanner.has_errors() {
+                scanner.print_errors();
+                std::process::exit(65)
+            }
+            let tokens = scanner.tokens();
 
-            let mut failed = false;
-            let tokens = result
-                .into_iter()
-                .filter_map(|result| match result {
-                    Ok(token) => Some(token),
-                    Err(err) => {
-                        failed = true;
-                        eprintln!("{}", err);
-                        None
-                    }
-                })
-                .collect::<Vec<_>>();
-            if failed {
+            let mut parser = Parser::new(&file, tokens);
+            parser.parse();
+            parser.print();
+            if parser.has_errors() {
+                std::process::exit(65)
+            }
+        }
+
+        Some(Commands::Evaluate { path }) => {
+            let file = SourceFile::new(path)?;
+
+            let mut scanner = Scanner::new(&file);
+            scanner.scan();
+            if scanner.has_errors() {
+                scanner.print_errors();
+                std::process::exit(65)
+            }
+            let tokens = scanner.tokens();
+
+            let mut parser = Parser::new(&file, tokens);
+            parser.parse();
+            if parser.has_errors() {
+                parser.print_errors();
                 std::process::exit(65)
             }
 
-            let result = parser::parse(tokens);
-            match result {
-                Ok(expr) => println!("{}", expr),
-                Err(err) => {
-                    eprintln!("{}", err);
-                    std::process::exit(65);
+            let expressions = parser.expressions();
+            if !expressions.is_empty() {
+                match expressions[0].interpret() {
+                    Ok(value) => println!("{}", value),
+                    Err(err) => eprintln!("{}", err),
                 }
             }
         }

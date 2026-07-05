@@ -1,31 +1,8 @@
 use std::fmt::Display;
 
-use crate::lexer::keyword::Keyword;
+use crate::token::Keyword;
 
-#[derive(Debug, PartialEq)]
-pub struct Token {
-    pub token_type: TokenType,
-    pub line: u32,
-    column: u32,
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.token_type)
-    }
-}
-
-impl TokenType {
-    pub fn to_token(self, line: u32, column: u32) -> Token {
-        Token {
-            token_type: self,
-            line,
-            column,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TokenType {
     LeftParen,
     RightParen,
@@ -50,39 +27,40 @@ pub enum TokenType {
     Number(String),
     Identifier(String),
     Keyword(Keyword),
-    EOF,
+    Eof,
 }
 
 impl TokenType {
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> &'static str {
         match self {
-            Self::LeftParen => "LEFT_PAREN".to_string(),
-            Self::RightParen => "RIGHT_PAREN".to_string(),
-            Self::LeftBrace => "LEFT_BRACE".to_string(),
-            Self::RightBrace => "RIGHT_BRACE".to_string(),
-            Self::Star => "STAR".to_string(),
-            Self::Dot => "DOT".to_string(),
-            Self::Comma => "COMMA".to_string(),
-            Self::Plus => "PLUS".to_string(),
-            Self::SemiColon => "SEMICOLON".to_string(),
-            Self::Minus => "MINUS".to_string(),
-            Self::Slash => "SLASH".to_string(),
-            Self::Equal => "EQUAL_EQUAL".to_string(),
-            Self::Assign => "EQUAL".to_string(),
-            Self::Bang => "BANG".to_string(),
-            Self::BangEqual => "BANG_EQUAL".to_string(),
-            Self::Less => "LESS".to_string(),
-            Self::LessEqual => "LESS_EQUAL".to_string(),
-            Self::Greater => "GREATER".to_string(),
-            Self::GreaterEqual => "GREATER_EQUAL".to_string(),
-            Self::String(_) => "STRING".to_string(),
-            Self::Number(_) => "NUMBER".to_string(),
-            Self::Identifier(_) => "IDENTIFIER".to_string(),
-            Self::Keyword(keyword) => format!("{}", keyword).to_uppercase(),
-            Self::EOF => "EOF".to_string(),
+            Self::LeftParen => "LEFT_PAREN",
+            Self::RightParen => "RIGHT_PAREN",
+            Self::LeftBrace => "LEFT_BRACE",
+            Self::RightBrace => "RIGHT_BRACE",
+            Self::Star => "STAR",
+            Self::Dot => "DOT",
+            Self::Comma => "COMMA",
+            Self::Plus => "PLUS",
+            Self::SemiColon => "SEMICOLON",
+            Self::Minus => "MINUS",
+            Self::Slash => "SLASH",
+            Self::Equal => "EQUAL_EQUAL",
+            Self::Assign => "EQUAL",
+            Self::Bang => "BANG",
+            Self::BangEqual => "BANG_EQUAL",
+            Self::Less => "LESS",
+            Self::LessEqual => "LESS_EQUAL",
+            Self::Greater => "GREATER",
+            Self::GreaterEqual => "GREATER_EQUAL",
+            Self::String(_) => "STRING",
+            Self::Number(_) => "NUMBER",
+            Self::Identifier(_) => "IDENTIFIER",
+            Self::Keyword(keyword) => keyword.name(),
+            Self::Eof => "EOF",
         }
     }
 
+    // TODO: examine using Cow
     pub fn lexeme(&self) -> String {
         match self {
             Self::LeftParen => "(".to_string(),
@@ -108,10 +86,11 @@ impl TokenType {
             Self::Number(float) => float.to_string(),
             Self::Identifier(identifier) => identifier.to_string(),
             Self::Keyword(keyword) => format!("{}", keyword),
-            Self::EOF => String::new(),
+            Self::Eof => String::new(),
         }
     }
 
+    // TODO: examine using Cow
     pub fn literal(&self) -> String {
         match self {
             Self::String(literal) => literal.clone(),
