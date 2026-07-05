@@ -46,9 +46,9 @@ impl Interpretable for Expr {
                     // BinaryOp::Greater => todo!(),
                     // BinaryOp::GreaterEqual => todo!(),
                     BinaryOp::Plus => add(left, right),
-                    // BinaryOp::Minus => left - right,
-                    // BinaryOp::Multiply => left * right,
-                    // BinaryOp::Divide => left / right,
+                    BinaryOp::Minus => subtract(left, right),
+                    BinaryOp::Multiply => multiply(left, right),
+                    BinaryOp::Divide => divide(left, right),
                     _ => todo!(),
                 }
             }
@@ -63,6 +63,34 @@ fn add(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
         }
         (LoxValue::String { .. }, LoxValue::String { .. }) => todo!(),
 
+        (..) => todo!(),
+    }
+}
+
+fn subtract(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
+    match (left, right) {
+        (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+            Ok(LoxValue::Number { value: a - b })
+        }
+        (..) => todo!(),
+    }
+}
+
+fn multiply(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
+    match (left, right) {
+        (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+            Ok(LoxValue::Number { value: a * b })
+        }
+        (..) => todo!(),
+    }
+}
+
+fn divide(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
+    match (left, right) {
+        (LoxValue::Number { value: a }, LoxValue::Number { value: 0.0 }) => todo!(),
+        (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+            Ok(LoxValue::Number { value: a / b })
+        }
         (..) => todo!(),
     }
 }
