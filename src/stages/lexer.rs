@@ -1,37 +1,30 @@
-use crate::{FANCY_ERROR, debug::DebugInfo, stages::StageResult};
+use crate::{
+    FANCY_ERROR,
+    debug::{DebugInfo, Location},
+    stages::StageResult,
+};
 use std::{iter::Peekable, str::Chars};
 
-use miette::{SourceOffset, SourceSpan};
+use miette::SourceCode;
 
 use crate::{
-    source_file::SourceFile,
     stages::errors::ScanError,
     token::{Keyword, SPECIAL_START_CHARS, Token, TokenType},
 };
 
 pub struct Scanner<'a> {
-    source: &'a SourceFile,
     cursor: Peekable<Chars<'a>>,
-    current_line: u32,
-    current_column: u32,
     results: Vec<Result<Token, ScanError>>,
+    location: Location,
 }
 
 impl<'a> Scanner<'a> {
-    pub fn new(file: &'a SourceFile) -> Self {
+    pub fn new(content: &'a str) -> Self {
         Self {
-            source: file,
-            cursor: file.content.chars().peekable(),
-            current_line: 1,
-            current_column: 0,
+            cursor: content.chars().peekable(),
+            location: Location::new(1, -1, 0),
             results: Vec::new(),
         }
-    }
-
-    fn location(&self) -> SourceOffset {
-        let start_line = self.current_line as usize;
-        let start_column = self.current_column as usize;
-        SourceOffset::from_location(&self.source.content, start_line, start_column)
     }
 
     fn next(&mut self) -> Option<char> {
@@ -51,11 +44,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn update_position(&mut self, char: char) {
-        self.current_column += 1;
-        if char == '\n' {
-            self.current_line += 1;
-            self.current_column = 0;
-        }
+        self.location.advance(char);
     }
 
     fn parse_until_before_eq(&mut self, terminator: &[char]) -> String {
@@ -80,18 +69,14 @@ impl<'a> Scanner<'a> {
     }
 
     fn string(&mut self) -> Result<TokenType, ScanError> {
-        let start_location = self.location();
+        let start_offset = self.location.offset;
         let literal = self.parse_until_before_eq(&['\n', '"']);
 
         match self.next_if_eq(&'"') {
             Some(_) => Ok(TokenType::String(literal)),
             None => Err(ScanError::UnterminatedString {
-                line: self.current_line,
-                src: self.source.named_source.clone(),
-                span: SourceSpan::new(
-                    SourceOffset::from(start_location.offset() + 1),
-                    literal.len(),
-                ),
+                line: self.location.line,
+                span: (start_offset+1, literal.len()).into(),
                 string: literal,
             }),
         }
@@ -112,8 +97,7 @@ impl<'a> Scanner<'a> {
                 // return Err(ScanError::InvalidCharacter {
                 //     line: self.current_line,
                 //     character: *char,
-                //     src: self.source.named_source.clone(),
-                //     span: self.location().into(),
+                //     span: self.location.offset.into(),
                 // });
             }
 
@@ -128,14 +112,14 @@ impl<'a> Scanner<'a> {
         //     Some(char) if char.is_ascii_alphabetic() => Err(ScanError::InvalidCharacter {
         //         line: self.current_line,
         //         character: *char,
-        //         src: self.source.named_source.clone(),
-        //         span: (self.location().offset() + 1).into(),
+        //         span: (self.location.offset + 1).into(),
         //     }),
         //     _ => Ok(TokenType::Number(literal)),
         // }
     }
 
     fn identifier(&mut self, initial: char) -> Result<TokenType, ScanError> {
+        // println!("🪚 self.location: {:?}", self.location);
         let result = self.parse_until(|char| char.is_ascii_alphanumeric() || char == &'_');
 
         let mut literal = String::from(initial);
@@ -149,8 +133,7 @@ impl<'a> Scanner<'a> {
 
     pub fn scan(&mut self) {
         while let Some(char) = self.next() {
-            let start_line = self.current_line;
-            let start_column = self.current_column;
+            let debug = DebugInfo::new(self.location);
 
             let token_type = match char {
                 ' ' | '\t' | '\n' | '\r' => continue,
@@ -193,20 +176,18 @@ impl<'a> Scanner<'a> {
                     self.identifier(x)
                 }
                 x => Err(ScanError::InvalidCharacter {
-                    line: self.current_line,
+                    line: self.location.line,
                     character: x,
-                    src: self.source.named_source.clone(),
-                    span: SourceSpan::new(self.location(), 1),
+                    span: self.location.offset.into(),
                 }),
             };
 
-            let debug = DebugInfo::new(start_line, start_column);
             let token = token_type.map(|token_type| Token::new(token_type, debug));
 
             self.results.push(token);
         }
 
-        let debug = DebugInfo::new(self.current_line + 1, 1);
+        let debug = DebugInfo::new(self.location);
         self.results.push(Ok(Token::new(TokenType::Eof, debug)));
     }
 
@@ -220,12 +201,15 @@ impl<'a> Scanner<'a> {
 }
 
 impl StageResult for Scanner<'_> {
-    fn print(&self) {
+    fn print(&self, source_code: impl SourceCode + Clone + 'static) {
         self.results.iter().for_each(|token| match token {
             Ok(token) => println!("{}", token),
             Err(err) => {
                 if FANCY_ERROR {
-                    eprintln!("{:?}", miette::Report::new(err.clone()))
+                    eprintln!(
+                        "{:?}",
+                        miette::Report::new(err.clone()).with_source_code(source_code.clone())
+                    )
                 } else {
                     eprintln!("{}", err)
                 }
@@ -233,11 +217,14 @@ impl StageResult for Scanner<'_> {
         });
     }
 
-    fn print_errors(&self) {
+    fn print_errors(&self, source_code: impl SourceCode + Clone + 'static) {
         self.results.iter().for_each(|token| {
             if let Err(err) = token {
                 if FANCY_ERROR {
-                    eprintln!("{:?}", miette::Report::new(err.clone()))
+                    eprintln!(
+                        "{:?}",
+                        miette::Report::new(err.clone()).with_source_code(source_code.clone())
+                    )
                 } else {
                     eprintln!("{}", err)
                 }

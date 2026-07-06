@@ -1,12 +1,14 @@
 use std::fmt::Display;
 
 pub use keyword::*;
-use miette::{SourceOffset, SourceSpan};
+use miette::SourceSpan;
+pub use token_stream::*;
 pub use token_type::*;
 
-use crate::{debug::DebugInfo, source_file::SourceFile};
+use crate::debug::DebugInfo;
 
 mod keyword;
+mod token_stream;
 mod token_type;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -27,14 +29,15 @@ impl Token {
     }
 
     pub fn line(&self) -> u32 {
-        self.debug.line
+        self.debug.location.line
     }
 
-    pub fn location(&self, source: &SourceFile) -> SourceOffset {
-        self.debug.location(source)
-    }
-
-    pub fn span(&self, source: &SourceFile) -> SourceSpan {
-        SourceSpan::new(self.location(source), self.token_type.lexeme().len())
+    pub fn span(&self) -> SourceSpan {
+        let span_length = self.token_type.lexeme().chars().count();
+        if span_length == 1 {
+            self.debug.location.offset.into()
+        } else {
+            (self.debug.location.offset, span_length).into()
+        }
     }
 }

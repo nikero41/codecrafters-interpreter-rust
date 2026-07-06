@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use miette::{Diagnostic, NamedSource, SourceSpan};
+use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Error, Diagnostic)]
@@ -8,17 +6,13 @@ pub enum ScanError {
     #[error("[line {line}] Error: Unexpected character: {character}")]
     InvalidCharacter {
         line: u32,
-        #[source_code]
-        src: NamedSource<Arc<String>>,
-        #[label]
+        #[label("Unexpected character")]
         span: SourceSpan,
         character: char,
     },
     #[error("[line {line}] Error: Unterminated string.")]
     UnterminatedString {
         line: u32,
-        #[source_code]
-        src: NamedSource<Arc<String>>,
         #[label]
         span: SourceSpan,
         string: String,
@@ -34,16 +28,12 @@ pub enum ParseError {
         line: u32,
         lexeme: String,
         message: String,
-        #[source_code]
-        src: NamedSource<Arc<String>>,
         #[label]
         span: SourceSpan,
     },
     #[error("[line {line}] Error: Unterminated paren.")]
     UnterminatedParen {
         line: u32,
-        #[source_code]
-        src: NamedSource<Arc<String>>,
         #[label]
         span: SourceSpan,
     },

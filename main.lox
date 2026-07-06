@@ -1,8 +1,14 @@
 // (42 != 22) == ((-52 + 54) >= (79 * 83))
 
+print "Hello World!";
+
+print "one";
+print true;
+print 2 + 1;
+
 // -80
 
-64 > -80
+// 64 > -80
 
 // 2 + 3 * 4 == 14
 
@@ -31,7 +37,7 @@
 // var a = 1;
 // var b = 2;
 // 
-// var name = "stavros";
+// var name = "stavros;
 // 
 // var test = 1 / ( 23 + 5 );
 // 

@@ -8,6 +8,9 @@ pub use operators::*;
 mod errors;
 pub use errors::*;
 
+mod parser;
+pub use parser::*;
+
 pub mod interpret;
 
 /// expression     → literal | unary | binary | grouping ;

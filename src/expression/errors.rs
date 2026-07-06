@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use miette::{Diagnostic, NamedSource, SourceSpan};
+use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::debug::DebugInfo;

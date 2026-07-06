@@ -6,6 +6,7 @@ use codecrafters_interpreter::{
     expression::interpret::Interpretable,
     source_file::SourceFile,
     stages::{Parser, Scanner, StageResult},
+    statements::Executable,
 };
 
 #[derive(ClapParser)]
@@ -32,6 +33,11 @@ enum Commands {
         #[arg(value_name = "FILE", default_value = "main.lox")]
         path: PathBuf,
     },
+    /// Run file
+    Run {
+        #[arg(value_name = "FILE", default_value = "main.lox")]
+        path: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -55,9 +61,9 @@ fn main() -> Result<()> {
         Some(Commands::Tokenize { path }) => {
             let file = SourceFile::new(path)?;
 
-            let mut scanner = Scanner::new(&file);
+            let mut scanner = Scanner::new(&file.content);
             scanner.scan();
-            scanner.print();
+            scanner.print(file.named_source.clone());
             if scanner.has_errors() {
                 std::process::exit(65)
             }
@@ -66,18 +72,18 @@ fn main() -> Result<()> {
         Some(Commands::Parse { path }) => {
             let file = SourceFile::new(path)?;
 
-            let mut scanner = Scanner::new(&file);
+            let mut scanner = Scanner::new(&file.content);
             scanner.scan();
             if scanner.has_errors() {
-                scanner.print_errors();
+                scanner.print_errors(file.named_source.clone());
                 std::process::exit(65)
             }
             let tokens = scanner.tokens();
 
-            let mut parser = Parser::new(&file, tokens);
-            parser.parse();
-            parser.print();
-            if parser.has_errors() {
+            let mut parser = Parser::new(tokens);
+            parser.parse_expr();
+            parser.print_expr(file.named_source.clone());
+            if parser.has_expr_errors() {
                 std::process::exit(65)
             }
         }
@@ -85,18 +91,18 @@ fn main() -> Result<()> {
         Some(Commands::Evaluate { path }) => {
             let file = SourceFile::new(path)?;
 
-            let mut scanner = Scanner::new(&file);
+            let mut scanner = Scanner::new(&file.content);
             scanner.scan();
             if scanner.has_errors() {
-                scanner.print_errors();
+                scanner.print_errors(file.named_source.clone());
                 std::process::exit(65)
             }
             let tokens = scanner.tokens();
 
-            let mut parser = Parser::new(&file, tokens);
-            parser.parse();
-            if parser.has_errors() {
-                parser.print_errors();
+            let mut parser = Parser::new(tokens);
+            parser.parse_expr();
+            if parser.has_expr_errors() {
+                parser.print_expr_errors(file.named_source.clone());
                 std::process::exit(65)
             }
 
@@ -110,6 +116,30 @@ fn main() -> Result<()> {
                     }
                 }
             }
+        }
+
+        Some(Commands::Run { path }) => {
+            let file = SourceFile::new(path)?;
+
+            let mut scanner = Scanner::new(&file.content);
+            scanner.scan();
+            if scanner.has_errors() {
+                scanner.print_errors(file.named_source.clone());
+                std::process::exit(65)
+            }
+            let tokens = scanner.tokens();
+
+            let mut parser = Parser::new(tokens);
+            parser.parse();
+            if parser.has_errors() {
+                parser.print_errors(file.named_source.clone());
+                std::process::exit(65)
+            }
+
+            parser
+                .statements()
+                .iter()
+                .try_for_each(|stmt| stmt.execute())?;
         }
     }
 
