@@ -18,10 +18,7 @@ pub enum Expr {
     /// grouping → "(" expression ")" ;
     Grouping(Box<Expr>),
     /// unary → ( "-" | "!" ) expression ;
-    Unary {
-        operator: UnaryOp,
-        right: Box<Expr>,
-    },
+    Unary { operator: UnaryOp, right: Box<Expr> },
     /// binary → expression operator expression ;
     Binary {
         left: Box<Expr>,
@@ -34,7 +31,7 @@ impl Display for Expr {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::Literal { value, .. } => match value {
-                LoxValue::Object {} => write!(f, "TODO object"),
+                LoxValue::Object { .. } => write!(f, "TODO object"),
                 LoxValue::Number { value, .. } => write!(f, "{:?}", value),
                 LoxValue::String { value, .. } => write!(f, "{}", value),
                 LoxValue::Bool { value, .. } => {

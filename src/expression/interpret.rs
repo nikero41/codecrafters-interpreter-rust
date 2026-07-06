@@ -13,18 +13,27 @@ impl Interpretable for Expr {
             Expr::Literal { value, .. } => value.interpret(),
             Expr::Grouping(expr) => expr.interpret(),
             Expr::Unary { operator, right } => {
-                let right = right.interpret()?;
-
+                let lox_value = right.interpret()?;
                 match operator {
-                    UnaryOp::Minus => match right {
-                        LoxValue::Number { value } => Ok(LoxValue::Number { value: -value }),
+                    UnaryOp::Minus => match lox_value {
+                        LoxValue::Number { value, token } => Ok(LoxValue::Number {
+                            value: -value,
+                            token,
+                        }),
                         LoxValue::Object { .. }
                         | LoxValue::String { .. }
                         | LoxValue::Bool { .. }
-                        | LoxValue::Nil { .. } => Err(InterpretError::InvalidUnary { line: 0 }),
+                        | LoxValue::Nil { .. } => {
+                            let token = lox_value.token();
+                            Err(InterpretError::InvalidUnary {
+                                line: token.line(),
+                                debug: token.debug.clone(),
+                            })
+                        }
                     },
                     UnaryOp::Not => Ok(LoxValue::Bool {
-                        value: !right.to_bool(),
+                        value: !lox_value.to_bool(),
+                        token: lox_value.token().clone(),
                     }),
                 }
             }
@@ -33,42 +42,59 @@ impl Interpretable for Expr {
                 operator,
                 right,
             } => {
-                let left = left.interpret()?;
-                let right = right.interpret()?;
+                let left_value = left.interpret()?;
+                let right_value = right.interpret()?;
 
                 match operator {
-                    BinaryOp::Equal => left.eq(&right),
+                    BinaryOp::Equal => left_value.eq(&right_value),
                     BinaryOp::NotEqual => {
-                        if let LoxValue::Bool { value } = left.eq(&right)? {
-                            Ok(LoxValue::Bool { value: !value })
+                        if let LoxValue::Bool { value, token } = left_value.eq(&right_value)? {
+                            Ok(LoxValue::Bool {
+                                value: !value,
+                                token,
+                            })
                         } else {
                             panic!("Wut")
                         }
                     }
-                    BinaryOp::Less => left.lt(&right),
+                    BinaryOp::Less => left_value.lt(&right_value),
                     BinaryOp::LessEqual => {
-                        if let LoxValue::Bool { value: true } = left.lt(&right)? {
-                            Ok(LoxValue::Bool { value: true })
-                        } else if let LoxValue::Bool { value: true } = left.eq(&right)? {
-                            Ok(LoxValue::Bool { value: true })
+                        if let LoxValue::Bool { value: true, token } =
+                            left_value.lt(&right_value)?
+                        {
+                            Ok(LoxValue::Bool { value: true, token })
+                        } else if let LoxValue::Bool { value: true, token } =
+                            left_value.eq(&right_value)?
+                        {
+                            Ok(LoxValue::Bool { value: true, token })
                         } else {
-                            Ok(LoxValue::Bool { value: false })
+                            Ok(LoxValue::Bool {
+                                value: false,
+                                token: left_value.token().clone(),
+                            })
                         }
                     }
-                    BinaryOp::Greater => left.gt(&right),
+                    BinaryOp::Greater => left_value.gt(&right_value),
                     BinaryOp::GreaterEqual => {
-                        if let LoxValue::Bool { value: true } = left.gt(&right)? {
-                            Ok(LoxValue::Bool { value: true })
-                        } else if let LoxValue::Bool { value: true } = left.eq(&right)? {
-                            Ok(LoxValue::Bool { value: true })
+                        if let LoxValue::Bool { value: true, token } =
+                            left_value.gt(&right_value)?
+                        {
+                            Ok(LoxValue::Bool { value: true, token })
+                        } else if let LoxValue::Bool { value: true, token } =
+                            left_value.eq(&right_value)?
+                        {
+                            Ok(LoxValue::Bool { value: true, token })
                         } else {
-                            Ok(LoxValue::Bool { value: false })
+                            Ok(LoxValue::Bool {
+                                value: false,
+                                token: left_value.token().clone(),
+                            })
                         }
                     }
-                    BinaryOp::Plus => left.add(&right),
-                    BinaryOp::Minus => left.subtract(&right),
-                    BinaryOp::Multiply => left.multiply(&right),
-                    BinaryOp::Divide => left.divide(&right),
+                    BinaryOp::Plus => left_value.add(&right_value),
+                    BinaryOp::Minus => left_value.subtract(&right_value),
+                    BinaryOp::Multiply => left_value.multiply(&right_value),
+                    BinaryOp::Divide => left_value.divide(&right_value),
                 }
             }
         }

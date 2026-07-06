@@ -12,7 +12,7 @@ mod token_type;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub token_type: TokenType,
-    debug: DebugInfo,
+    pub debug: DebugInfo,
 }
 
 impl Display for Token {

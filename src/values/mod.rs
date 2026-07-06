@@ -7,11 +7,11 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub enum LoxValue {
-    Object {},
-    Number { value: f64 },
-    String { value: String },
-    Bool { value: bool },
-    Nil {},
+    Object { token: Token },
+    Number { value: f64, token: Token },
+    String { value: String, token: Token },
+    Bool { value: bool, token: Token },
+    Nil { token: Token },
 }
 
 impl Display for LoxValue {
@@ -33,13 +33,23 @@ impl TryFrom<&Token> for LoxValue {
         match &token.token_type {
             TokenType::Number(float) => Ok(LoxValue::Number {
                 value: float.parse::<f64>().unwrap(),
+                token: token.clone(),
             }),
             TokenType::String(literal) => Ok(LoxValue::String {
                 value: literal.clone(),
+                token: token.clone(),
             }),
-            TokenType::Keyword(Keyword::True) => Ok(LoxValue::Bool { value: true }),
-            TokenType::Keyword(Keyword::False) => Ok(LoxValue::Bool { value: false }),
-            TokenType::Keyword(Keyword::Nil) => Ok(LoxValue::Nil {}),
+            TokenType::Keyword(Keyword::True) => Ok(LoxValue::Bool {
+                value: true,
+                token: token.clone(),
+            }),
+            TokenType::Keyword(Keyword::False) => Ok(LoxValue::Bool {
+                value: false,
+                token: token.clone(),
+            }),
+            TokenType::Keyword(Keyword::Nil) => Ok(LoxValue::Nil {
+                token: token.clone(),
+            }),
             _ => Err("Not a literal type"),
         }
     }
@@ -56,97 +66,172 @@ impl LoxValue {
         }
     }
 
+    pub fn token(&self) -> &Token {
+        match self {
+            LoxValue::Object { token } => token,
+            LoxValue::Number { token, .. } => token,
+            LoxValue::String { token, .. } => token,
+            LoxValue::Bool { token, .. } => token,
+            LoxValue::Nil { token } => token,
+        }
+    }
+
     pub fn add(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
         match (self, right) {
-            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-                Ok(LoxValue::Number { value: a + b })
-            }
-            (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
-                Ok(LoxValue::String {
-                    value: a.clone() + b,
+            (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
+                Ok(LoxValue::Number {
+                    value: a + b,
+                    token: self.token().clone(),
                 })
             }
-            (..) => Err(InterpretError::InvalidAddition { line: 0 }),
+            (LoxValue::String { value: a, .. }, LoxValue::String { value: b, .. }) => {
+                Ok(LoxValue::String {
+                    value: a.clone() + b,
+                    token: self.token().clone(),
+                })
+            }
+            (..) => Err(InterpretError::InvalidAddition {
+                line: self.token().line(),
+                debug: self.token().debug.clone(),
+            }),
         }
     }
 
     pub fn subtract(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
         match (self, right) {
-            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-                Ok(LoxValue::Number { value: a - b })
+            (LoxValue::Number { value: a, token }, LoxValue::Number { value: b, .. }) => {
+                Ok(LoxValue::Number {
+                    value: a - b,
+                    token: token.clone(),
+                })
             }
-            (..) => Err(InterpretError::InvalidAddition { line: 0 }),
+            (..) => Err(InterpretError::InvalidAddition {
+                line: self.token().line(),
+                debug: self.token().debug.clone(),
+            }),
         }
     }
 
     pub fn multiply(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
         match (self, right) {
-            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-                Ok(LoxValue::Number { value: a * b })
+            (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
+                Ok(LoxValue::Number {
+                    value: a * b,
+                    token: self.token().clone(),
+                })
             }
-            (..) => Err(InterpretError::InvalidOperators { line: 0 }),
+            (..) => Err(InterpretError::NotNumbers {
+                line: self.token().line(),
+                debug: self.token().debug.clone(),
+            }),
         }
     }
 
     pub fn divide(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
         match (self, right) {
-            (LoxValue::Number { .. }, LoxValue::Number { value: 0.0 }) => todo!(),
-            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-                Ok(LoxValue::Number { value: a / b })
+            (LoxValue::Number { .. }, LoxValue::Number { value: 0.0, .. }) => todo!(),
+            (LoxValue::Number { value: a, token }, LoxValue::Number { value: b, .. }) => {
+                Ok(LoxValue::Number {
+                    value: a / b,
+                    token: token.clone(),
+                })
             }
-            (..) => Err(InterpretError::InvalidOperators { line: 0 }),
+            (..) => Err(InterpretError::NotNumbers {
+                line: self.token().line(),
+                debug: self.token().debug.clone(),
+            }),
         }
     }
 
     pub fn eq(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
         match (self, right) {
-            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-                Ok(LoxValue::Bool { value: a == b })
+            (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
+                Ok(LoxValue::Bool {
+                    value: a == b,
+                    token: self.token().clone(),
+                })
             }
-            (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
-                Ok(LoxValue::Bool { value: a == b })
+            (LoxValue::String { value: a, .. }, LoxValue::String { value: b, .. }) => {
+                Ok(LoxValue::Bool {
+                    value: a == b,
+                    token: self.token().clone(),
+                })
             }
-            (LoxValue::Bool { value: a }, LoxValue::Bool { value: b }) => {
-                Ok(LoxValue::Bool { value: a == b })
+            (LoxValue::Bool { value: a, .. }, LoxValue::Bool { value: b, .. }) => {
+                Ok(LoxValue::Bool {
+                    value: a == b,
+                    token: self.token().clone(),
+                })
             }
-            (LoxValue::Nil {}, LoxValue::Nil {}) => Ok(LoxValue::Bool { value: true }),
-            (_, LoxValue::Nil {}) | (LoxValue::Nil {}, _) => Ok(LoxValue::Bool { value: false }),
+            (LoxValue::Nil { .. }, LoxValue::Nil { .. }) => Ok(LoxValue::Bool {
+                value: true,
+                token: self.token().clone(),
+            }),
+            (_, LoxValue::Nil { .. }) | (LoxValue::Nil { .. }, _) => Ok(LoxValue::Bool {
+                value: false,
+                token: self.token().clone(),
+            }),
 
-            (..) => Ok(LoxValue::Bool { value: false }),
+            (..) => Ok(LoxValue::Bool {
+                value: false,
+                token: self.token().clone(),
+            }),
         }
     }
 
     pub fn lt(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
         match (self, right) {
-            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-                Ok(LoxValue::Bool { value: a < b })
+            (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
+                Ok(LoxValue::Bool {
+                    value: a < b,
+                    token: self.token().clone(),
+                })
             }
-            (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
-                Ok(LoxValue::Bool { value: a < b })
+            (LoxValue::String { value: a, .. }, LoxValue::String { value: b, .. }) => {
+                Ok(LoxValue::Bool {
+                    value: a < b,
+                    token: self.token().clone(),
+                })
             }
-            (LoxValue::Bool { .. }, LoxValue::Bool { .. }) => Ok(LoxValue::Bool { value: false }),
-            (LoxValue::Nil {}, LoxValue::Nil {})
-            | (_, LoxValue::Nil {})
-            | (LoxValue::Nil {}, _) => Ok(LoxValue::Bool { value: false }),
+            (LoxValue::Nil { .. }, LoxValue::Nil { .. })
+            | (_, LoxValue::Nil { .. })
+            | (LoxValue::Nil { .. }, _) => Ok(LoxValue::Bool {
+                value: false,
+                token: self.token().clone(),
+            }),
 
-            (..) => todo!(),
+            (..) => Err(InterpretError::NotNumbers {
+                line: self.token().line(),
+                debug: self.token().debug.clone(),
+            }),
         }
     }
 
     pub fn gt(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
         match (self, right) {
-            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-                Ok(LoxValue::Bool { value: a > b })
+            (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
+                Ok(LoxValue::Bool {
+                    value: a > b,
+                    token: self.token().clone(),
+                })
             }
-            (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
-                Ok(LoxValue::Bool { value: a > b })
+            (LoxValue::String { value: a, .. }, LoxValue::String { value: b, .. }) => {
+                Ok(LoxValue::Bool {
+                    value: a > b,
+                    token: self.token().clone(),
+                })
             }
-            (LoxValue::Bool { .. }, LoxValue::Bool { .. }) => Ok(LoxValue::Bool { value: false }),
-            (LoxValue::Nil {}, LoxValue::Nil {})
-            | (_, LoxValue::Nil {})
-            | (LoxValue::Nil {}, _) => Ok(LoxValue::Bool { value: false }),
+            (LoxValue::Nil { .. }, LoxValue::Nil { .. })
+            | (_, LoxValue::Nil { .. })
+            | (LoxValue::Nil { .. }, _) => Ok(LoxValue::Bool {
+                value: false,
+                token: self.token().clone(),
+            }),
 
-            (..) => todo!(),
+            (..) => Err(InterpretError::NotNumbers {
+                line: self.token().line(),
+                debug: self.token().debug.clone(),
+            }),
         }
     }
 }
