@@ -70,7 +70,7 @@ impl<'a> Scanner<'a> {
 
     fn string(&mut self) -> Result<TokenType, ScanError> {
         let start_offset = self.location.offset;
-        let literal = self.parse_until_before_eq(&['\n', '"']);
+        let literal = self.parse_until_before_eq(&['"']);
 
         match self.next_if_eq(&'"') {
             Some(_) => Ok(TokenType::String(literal)),
