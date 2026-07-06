@@ -3,8 +3,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error, Diagnostic, Clone)]
 pub enum InterpretError {
-    #[error("[line {line}] Error: Unterminated paren.")]
-    UnterminatedParen {
+    #[error("[line {line}] Operand must be a number.")]
+    InvalidOperator {
         line: u32,
         // #[source_code]
         // src: NamedSource<Arc<String>>,

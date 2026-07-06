@@ -22,7 +22,9 @@ impl Interpretable for Expr {
                         | LoxValue::String { .. }
                         | LoxValue::Bool { .. }
                         | LoxValue::Nil { .. } => {
-                            Err(InterpretError::UnterminatedParen { line: 0 })
+                            Err(InterpretError::InvalidOperator {
+                                line: 0,
+                            })
                         }
                     },
                     UnaryOp::Not => Ok(LoxValue::Bool {
