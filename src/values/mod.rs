@@ -55,6 +55,101 @@ impl LoxValue {
             LoxValue::Object { .. } => true,
         }
     }
+
+    pub fn add(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+        match (self, right) {
+            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+                Ok(LoxValue::Number { value: a + b })
+            }
+            (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
+                Ok(LoxValue::String {
+                    value: a.clone() + &b,
+                })
+            }
+
+            (..) => todo!(),
+        }
+    }
+
+    pub fn subtract(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+        match (self, right) {
+            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+                Ok(LoxValue::Number { value: a - b })
+            }
+            (..) => todo!(),
+        }
+    }
+
+    pub fn multiply(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+        match (self, right) {
+            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+                Ok(LoxValue::Number { value: a * b })
+            }
+            (..) => todo!(),
+        }
+    }
+
+    pub fn divide(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+        match (self, right) {
+            (LoxValue::Number { .. }, LoxValue::Number { value: 0.0 }) => todo!(),
+            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+                Ok(LoxValue::Number { value: a / b })
+            }
+            (..) => todo!(),
+        }
+    }
+
+    pub fn eq(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+        match (self, right) {
+            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+                Ok(LoxValue::Bool { value: a == b })
+            }
+            (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
+                Ok(LoxValue::Bool { value: a == b })
+            }
+            (LoxValue::Bool { value: a }, LoxValue::Bool { value: b }) => {
+                Ok(LoxValue::Bool { value: a == b })
+            }
+            (LoxValue::Nil {}, LoxValue::Nil {}) => Ok(LoxValue::Bool { value: true }),
+            (_, LoxValue::Nil {}) | (LoxValue::Nil {}, _) => Ok(LoxValue::Bool { value: false }),
+
+            (..) => todo!(),
+        }
+    }
+
+    pub fn lt(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+        match (self, right) {
+            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+                Ok(LoxValue::Bool { value: a < b })
+            }
+            (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
+                Ok(LoxValue::Bool { value: a < b })
+            }
+            (LoxValue::Bool { .. }, LoxValue::Bool { .. }) => Ok(LoxValue::Bool { value: false }),
+            (LoxValue::Nil {}, LoxValue::Nil {})
+            | (_, LoxValue::Nil {})
+            | (LoxValue::Nil {}, _) => Ok(LoxValue::Bool { value: false }),
+
+            (..) => todo!(),
+        }
+    }
+
+    pub fn gt(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+        match (self, right) {
+            (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
+                Ok(LoxValue::Bool { value: a > b })
+            }
+            (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
+                Ok(LoxValue::Bool { value: a > b })
+            }
+            (LoxValue::Bool { .. }, LoxValue::Bool { .. }) => Ok(LoxValue::Bool { value: false }),
+            (LoxValue::Nil {}, LoxValue::Nil {})
+            | (_, LoxValue::Nil {})
+            | (LoxValue::Nil {}, _) => Ok(LoxValue::Bool { value: false }),
+
+            (..) => todo!(),
+        }
+    }
 }
 
 impl Interpretable for LoxValue {

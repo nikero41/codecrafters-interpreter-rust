@@ -39,60 +39,40 @@ impl Interpretable for Expr {
                 let right = right.interpret()?;
 
                 match operator {
-                    // BinaryOp::Equal => todo!(),
-                    // BinaryOp::NotEqual => todo!(),
-                    // BinaryOp::Less => todo!(),
-                    // BinaryOp::LessEqual => todo!(),
-                    // BinaryOp::Greater => todo!(),
-                    // BinaryOp::GreaterEqual => todo!(),
-                    BinaryOp::Plus => add(left, right),
-                    BinaryOp::Minus => subtract(left, right),
-                    BinaryOp::Multiply => multiply(left, right),
-                    BinaryOp::Divide => divide(left, right),
-                    _ => todo!(),
+                    BinaryOp::Equal => left.eq(&right),
+                    BinaryOp::NotEqual => {
+                        if let LoxValue::Bool { value } = left.eq(&right)? {
+                            Ok(LoxValue::Bool { value: !value })
+                        } else {
+                            panic!("Wut")
+                        }
+                    }
+                    BinaryOp::Less => left.lt(&right),
+                    BinaryOp::LessEqual => {
+                        if let LoxValue::Bool { value: true } = left.lt(&right)? {
+                            Ok(LoxValue::Bool { value: true })
+                        } else if let LoxValue::Bool { value: true } = left.eq(&right)? {
+                            Ok(LoxValue::Bool { value: true })
+                        } else {
+                            Ok(LoxValue::Bool { value: false })
+                        }
+                    }
+                    BinaryOp::Greater => left.gt(&right),
+                    BinaryOp::GreaterEqual => {
+                        if let LoxValue::Bool { value: true } = left.gt(&right)? {
+                            Ok(LoxValue::Bool { value: true })
+                        } else if let LoxValue::Bool { value: true } = left.eq(&right)? {
+                            Ok(LoxValue::Bool { value: true })
+                        } else {
+                            Ok(LoxValue::Bool { value: false })
+                        }
+                    }
+                    BinaryOp::Plus => left.add(&right),
+                    BinaryOp::Minus => left.subtract(&right),
+                    BinaryOp::Multiply => left.multiply(&right),
+                    BinaryOp::Divide => left.divide(&right),
                 }
             }
         }
-    }
-}
-
-fn add(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
-    match (left, right) {
-        (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-            Ok(LoxValue::Number { value: a + b })
-        }
-        (LoxValue::String { value: a }, LoxValue::String { value: b }) => Ok(LoxValue::String {
-            value: a.clone() + &b,
-        }),
-
-        (..) => todo!(),
-    }
-}
-
-fn subtract(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
-    match (left, right) {
-        (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-            Ok(LoxValue::Number { value: a - b })
-        }
-        (..) => todo!(),
-    }
-}
-
-fn multiply(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
-    match (left, right) {
-        (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-            Ok(LoxValue::Number { value: a * b })
-        }
-        (..) => todo!(),
-    }
-}
-
-fn divide(left: LoxValue, right: LoxValue) -> Result<LoxValue, InterpretError> {
-    match (left, right) {
-        (LoxValue::Number { value: a }, LoxValue::Number { value: 0.0 }) => todo!(),
-        (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
-            Ok(LoxValue::Number { value: a / b })
-        }
-        (..) => todo!(),
     }
 }
