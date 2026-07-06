@@ -104,7 +104,10 @@ fn main() -> Result<()> {
             if !expressions.is_empty() {
                 match expressions[0].interpret() {
                     Ok(value) => println!("{}", value),
-                    Err(err) => eprintln!("{}", err),
+                    Err(err) => {
+                        eprintln!("{}", err);
+                        std::process::exit(70)
+                    }
                 }
             }
         }

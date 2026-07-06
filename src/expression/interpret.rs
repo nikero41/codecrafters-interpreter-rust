@@ -21,11 +21,7 @@ impl Interpretable for Expr {
                         LoxValue::Object { .. }
                         | LoxValue::String { .. }
                         | LoxValue::Bool { .. }
-                        | LoxValue::Nil { .. } => {
-                            Err(InterpretError::InvalidOperator {
-                                line: 0,
-                            })
-                        }
+                        | LoxValue::Nil { .. } => Err(InterpretError::InvalidOperator { line: 0 }),
                     },
                     UnaryOp::Not => Ok(LoxValue::Bool {
                         value: !right.to_bool(),
