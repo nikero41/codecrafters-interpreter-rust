@@ -6,4 +6,4 @@ pub mod statements;
 pub mod token;
 pub mod values;
 
-pub const FANCY_ERROR: bool = true;
+pub const FANCY_ERROR: bool = false;
