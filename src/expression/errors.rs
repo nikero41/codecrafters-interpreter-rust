@@ -11,4 +11,12 @@ pub enum InterpretError {
         // #[label]
         // span: SourceSpan,
     },
+    #[error("[line {line}] Operands must be numbers.")]
+    InvalidOperators {
+        line: u32,
+        // #[source_code]
+        // src: NamedSource<Arc<String>>,
+        // #[label]
+        // span: SourceSpan,
+    },
 }

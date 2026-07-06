@@ -85,7 +85,7 @@ impl LoxValue {
             (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
                 Ok(LoxValue::Number { value: a * b })
             }
-            (..) => todo!(),
+            (..) => Err(InterpretError::InvalidOperators { line: 0 }),
         }
     }
 
@@ -95,7 +95,7 @@ impl LoxValue {
             (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
                 Ok(LoxValue::Number { value: a / b })
             }
-            (..) => todo!(),
+            (..) => Err(InterpretError::InvalidOperators { line: 0 }),
         }
     }
 
@@ -113,7 +113,7 @@ impl LoxValue {
             (LoxValue::Nil {}, LoxValue::Nil {}) => Ok(LoxValue::Bool { value: true }),
             (_, LoxValue::Nil {}) | (LoxValue::Nil {}, _) => Ok(LoxValue::Bool { value: false }),
 
-            (..) =>Ok(LoxValue::Bool { value: false }), 
+            (..) => Ok(LoxValue::Bool { value: false }),
         }
     }
 
