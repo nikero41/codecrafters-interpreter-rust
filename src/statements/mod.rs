@@ -12,14 +12,14 @@ pub enum Stmt {
     /// printStmt      → "print" expression ";" ;
     Print(Expr),
     /// exprStmt       → expression ";" ;
-    Expr,
+    Expr(Expr),
 }
 
 impl Display for Stmt {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Stmt::Print(_) => write!(f, "PRINT"),
-            Stmt::Expr => write!(f, "EXPR"),
+            Stmt::Expr(_) => write!(f, "EXPR"),
         }
     }
 }
@@ -32,16 +32,21 @@ impl<'a> StatementParser<'a> {
     pub fn parse(stream: &'a mut TokenStream) -> Result<Stmt, ParseError> {
         let parser = Self { stream };
 
-        match parser.stream.next() {
+        match parser.stream.peek() {
             Some(Token {
                 token_type: TokenType::Keyword(Keyword::Print),
                 ..
             }) => {
+                parser.stream.next();
                 let expr = ExpressionParser::parse(parser.stream)?;
                 parser.stream.match_tokens(&[TokenType::SemiColon]);
                 Ok(Stmt::Print(expr))
             }
-            _ => Ok(Stmt::Expr),
+            _ => {
+                let expr = ExpressionParser::parse(parser.stream)?;
+                parser.stream.match_tokens(&[TokenType::SemiColon]);
+                Ok(Stmt::Expr(expr))
+            }
         }
     }
 }
@@ -57,7 +62,7 @@ impl Executable for Stmt {
                 let value = expr.interpret()?;
                 println!("{}", value);
             }
-            Stmt::Expr => todo!(),
+            Stmt::Expr(expr) => expr.interpret().map(|_| ())?,
         }
         Ok(())
     }

@@ -139,7 +139,13 @@ fn main() -> Result<()> {
             parser
                 .statements()
                 .iter()
-                .try_for_each(|stmt| stmt.execute())?;
+                .for_each(|stmt| match stmt.execute() {
+                    Ok(_) => {}
+                    Err(err) => {
+                        eprintln!("{}", err);
+                        std::process::exit(70);
+                    }
+                });
         }
     }
 
