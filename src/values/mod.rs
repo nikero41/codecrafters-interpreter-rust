@@ -113,7 +113,7 @@ impl LoxValue {
             (LoxValue::Nil {}, LoxValue::Nil {}) => Ok(LoxValue::Bool { value: true }),
             (_, LoxValue::Nil {}) | (LoxValue::Nil {}, _) => Ok(LoxValue::Bool { value: false }),
 
-            (..) => todo!(),
+            (..) =>Ok(LoxValue::Bool { value: false }), 
         }
     }
 
