@@ -63,11 +63,10 @@ impl LoxValue {
             }
             (LoxValue::String { value: a }, LoxValue::String { value: b }) => {
                 Ok(LoxValue::String {
-                    value: a.clone() + &b,
+                    value: a.clone() + b,
                 })
             }
-
-            (..) => todo!(),
+            (..) => Err(InterpretError::InvalidAddition { line: 0 }),
         }
     }
 
@@ -76,7 +75,7 @@ impl LoxValue {
             (LoxValue::Number { value: a }, LoxValue::Number { value: b }) => {
                 Ok(LoxValue::Number { value: a - b })
             }
-            (..) => todo!(),
+            (..) => Err(InterpretError::InvalidAddition { line: 0 }),
         }
     }
 
