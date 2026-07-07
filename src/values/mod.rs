@@ -1,7 +1,8 @@
 use std::fmt::{Display, Formatter};
 
 use crate::{
-    expression::{InterpretError, interpret::Interpretable},
+    debug::Debugable,
+    interpreter::RuntimeError,
     token::{Keyword, Token, TokenType},
 };
 
@@ -55,6 +56,7 @@ impl TryFrom<&Token> for LoxValue {
     }
 }
 
+// TODO: keep track of the tokens the value was created from
 impl LoxValue {
     pub fn to_bool(&self) -> bool {
         match self {
@@ -76,7 +78,7 @@ impl LoxValue {
         }
     }
 
-    pub fn add(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+    pub fn add(&self, right: &LoxValue) -> Result<LoxValue, RuntimeError> {
         match (self, right) {
             (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
                 Ok(LoxValue::Number {
@@ -90,14 +92,17 @@ impl LoxValue {
                     token: self.token().clone(),
                 })
             }
-            (..) => Err(InterpretError::InvalidAddition {
-                line: self.token().line(),
-                debug: self.token().debug.clone(),
-            }),
+            (..) => {
+                let token = self.token();
+                Err(RuntimeError::InvalidOperation {
+                    line: token.line(),
+                    span: token.span(),
+                })
+            }
         }
     }
 
-    pub fn subtract(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+    pub fn subtract(&self, right: &LoxValue) -> Result<LoxValue, RuntimeError> {
         match (self, right) {
             (LoxValue::Number { value: a, token }, LoxValue::Number { value: b, .. }) => {
                 Ok(LoxValue::Number {
@@ -105,14 +110,17 @@ impl LoxValue {
                     token: token.clone(),
                 })
             }
-            (..) => Err(InterpretError::InvalidAddition {
-                line: self.token().line(),
-                debug: self.token().debug.clone(),
-            }),
+            (..) => {
+                let token = self.token();
+                Err(RuntimeError::InvalidOperation {
+                    line: token.line(),
+                    span: token.span(),
+                })
+            }
         }
     }
 
-    pub fn multiply(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+    pub fn multiply(&self, right: &LoxValue) -> Result<LoxValue, RuntimeError> {
         match (self, right) {
             (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
                 Ok(LoxValue::Number {
@@ -120,14 +128,17 @@ impl LoxValue {
                     token: self.token().clone(),
                 })
             }
-            (..) => Err(InterpretError::NotNumbers {
-                line: self.token().line(),
-                debug: self.token().debug.clone(),
-            }),
+            (..) => {
+                let token = self.token();
+                Err(RuntimeError::NotNumbers {
+                    line: token.line(),
+                    span: token.span(),
+                })
+            }
         }
     }
 
-    pub fn divide(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+    pub fn divide(&self, right: &LoxValue) -> Result<LoxValue, RuntimeError> {
         match (self, right) {
             (LoxValue::Number { .. }, LoxValue::Number { value: 0.0, .. }) => todo!(),
             (LoxValue::Number { value: a, token }, LoxValue::Number { value: b, .. }) => {
@@ -136,14 +147,17 @@ impl LoxValue {
                     token: token.clone(),
                 })
             }
-            (..) => Err(InterpretError::NotNumbers {
-                line: self.token().line(),
-                debug: self.token().debug.clone(),
-            }),
+            (..) => {
+                let token = self.token();
+                Err(RuntimeError::NotNumbers {
+                    line: token.line(),
+                    span: token.span(),
+                })
+            }
         }
     }
 
-    pub fn eq(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+    pub fn eq(&self, right: &LoxValue) -> Result<LoxValue, RuntimeError> {
         match (self, right) {
             (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
                 Ok(LoxValue::Bool {
@@ -179,7 +193,7 @@ impl LoxValue {
         }
     }
 
-    pub fn lt(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+    pub fn lt(&self, right: &LoxValue) -> Result<LoxValue, RuntimeError> {
         match (self, right) {
             (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
                 Ok(LoxValue::Bool {
@@ -200,14 +214,17 @@ impl LoxValue {
                 token: self.token().clone(),
             }),
 
-            (..) => Err(InterpretError::NotNumbers {
-                line: self.token().line(),
-                debug: self.token().debug.clone(),
-            }),
+            (..) => {
+                let token = self.token();
+                Err(RuntimeError::NotNumbers {
+                    line: token.line(),
+                    span: token.span(),
+                })
+            }
         }
     }
 
-    pub fn gt(&self, right: &LoxValue) -> Result<LoxValue, InterpretError> {
+    pub fn gt(&self, right: &LoxValue) -> Result<LoxValue, RuntimeError> {
         match (self, right) {
             (LoxValue::Number { value: a, .. }, LoxValue::Number { value: b, .. }) => {
                 Ok(LoxValue::Bool {
@@ -228,16 +245,10 @@ impl LoxValue {
                 token: self.token().clone(),
             }),
 
-            (..) => Err(InterpretError::NotNumbers {
+            (..) => Err(RuntimeError::NotNumbers {
                 line: self.token().line(),
-                debug: self.token().debug.clone(),
+                span: self.token().span(),
             }),
         }
-    }
-}
-
-impl Interpretable for LoxValue {
-    fn interpret(&self) -> Result<LoxValue, InterpretError> {
-        Ok(self.clone())
     }
 }

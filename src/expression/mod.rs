@@ -1,33 +1,142 @@
 use std::fmt::{Display, Formatter};
 
-use crate::{token::Token, values::LoxValue};
+use crate::{
+    debug::Debugable, environment::Environment, interpreter::RuntimeError, token::Token,
+    values::LoxValue,
+};
 
 mod operators;
 pub use operators::*;
 
-mod errors;
-pub use errors::*;
-
 mod parser;
 pub use parser::*;
 
-pub mod interpret;
-
-/// expression     → literal | unary | binary | grouping ;
 #[derive(Debug, Clone)]
 pub enum Expr {
     /// literal → NUMBER | STRING | "true" | "false" | "nil" ;
-    Literal { value: LoxValue, token: Token },
+    Literal {
+        value: LoxValue,
+        token: Token,
+    },
     /// grouping → "(" expression ")" ;
     Grouping(Box<Expr>),
     /// unary → ( "-" | "!" ) expression ;
-    Unary { operator: UnaryOp, right: Box<Expr> },
+    Unary {
+        operator: UnaryOp,
+        right: Box<Expr>,
+    },
     /// binary → expression operator expression ;
     Binary {
         left: Box<Expr>,
         operator: BinaryOp,
         right: Box<Expr>,
     },
+    /// assignment → IDENTIFIER "=" assignment ;
+    Assign {
+        token: Token,
+        value: Box<Expr>,
+    },
+    Variable(Token),
+}
+
+impl Expr {
+    pub fn eval(self, env: &mut Environment) -> Result<LoxValue, RuntimeError> {
+        match self {
+            Expr::Literal { value, .. } => Ok(value),
+            Expr::Grouping(expr) => expr.eval(env),
+            Expr::Unary { operator, right } => {
+                let lox_value = right.eval(env)?;
+                match operator {
+                    UnaryOp::Minus => match lox_value {
+                        LoxValue::Number { value, token } => Ok(LoxValue::Number {
+                            value: -value,
+                            token,
+                        }),
+                        LoxValue::Object { .. }
+                        | LoxValue::String { .. }
+                        | LoxValue::Bool { .. }
+                        | LoxValue::Nil { .. } => {
+                            let token = lox_value.token();
+                            Err(RuntimeError::NotANumber {
+                                line: token.line(),
+                                span: token.span(),
+                            })
+                        }
+                    },
+                    UnaryOp::Not => Ok(LoxValue::Bool {
+                        value: !lox_value.to_bool(),
+                        token: lox_value.token().clone(),
+                    }),
+                }
+            }
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_value = left.eval(env)?;
+                let right_value = right.eval(env)?;
+
+                match operator {
+                    BinaryOp::Equal => left_value.eq(&right_value),
+                    BinaryOp::NotEqual => {
+                        if let LoxValue::Bool { value, token } = left_value.eq(&right_value)? {
+                            Ok(LoxValue::Bool {
+                                value: !value,
+                                token,
+                            })
+                        } else {
+                            panic!("Wut")
+                        }
+                    }
+                    BinaryOp::Less => left_value.lt(&right_value),
+                    BinaryOp::LessEqual => {
+                        if let LoxValue::Bool { value: true, token } =
+                            left_value.lt(&right_value)?
+                        {
+                            Ok(LoxValue::Bool { value: true, token })
+                        } else if let LoxValue::Bool { value: true, token } =
+                            left_value.eq(&right_value)?
+                        {
+                            Ok(LoxValue::Bool { value: true, token })
+                        } else {
+                            Ok(LoxValue::Bool {
+                                value: false,
+                                token: left_value.token().clone(),
+                            })
+                        }
+                    }
+                    BinaryOp::Greater => left_value.gt(&right_value),
+                    BinaryOp::GreaterEqual => {
+                        if let LoxValue::Bool { value: true, token } =
+                            left_value.gt(&right_value)?
+                        {
+                            Ok(LoxValue::Bool { value: true, token })
+                        } else if let LoxValue::Bool { value: true, token } =
+                            left_value.eq(&right_value)?
+                        {
+                            Ok(LoxValue::Bool { value: true, token })
+                        } else {
+                            Ok(LoxValue::Bool {
+                                value: false,
+                                token: left_value.token().clone(),
+                            })
+                        }
+                    }
+                    BinaryOp::Plus => left_value.add(&right_value),
+                    BinaryOp::Minus => left_value.subtract(&right_value),
+                    BinaryOp::Multiply => left_value.multiply(&right_value),
+                    BinaryOp::Divide => left_value.divide(&right_value),
+                }
+            }
+            Expr::Assign { token, value } => {
+                let value = value.eval(env)?;
+                env.define(token.token_type.lexeme(), value.clone());
+                Ok(value)
+            }
+            Expr::Variable(token) => env.get(&token).cloned(),
+        }
+    }
 }
 
 impl Display for Expr {
@@ -59,6 +168,55 @@ impl Display for Expr {
             } => {
                 write!(f, "({} {} {})", operator, left, right)
             }
+            Expr::Assign { token, value } => {
+                write!(f, "{} = {}", token.token_type.lexeme(), value)
+            }
+            Expr::Variable(token) => {
+                write!(f, "{}", token.token_type.lexeme())
+            }
+        }
+    }
+}
+
+impl Debugable for Expr {
+    fn source_map(&self) -> &crate::debug::SourceMap {
+        match self {
+            Expr::Literal { token, .. } => token.source_map(),
+            Expr::Grouping(expr) => expr.source_map(),
+            Expr::Unary { right, .. } => right.source_map(),
+            Expr::Binary { left, .. } => left.source_map(),
+            Expr::Assign { value, .. } => value.source_map(),
+            Expr::Variable(token) => token.source_map(),
+        }
+    }
+
+    fn line(&self) -> u32 {
+        match self {
+            Expr::Literal { token, .. } => token.line(),
+            Expr::Grouping(expr) => expr.line(),
+            Expr::Unary { right, .. } => right.line(),
+            Expr::Binary { left, .. } => left.line(),
+            Expr::Assign { value, .. } => value.line(),
+            Expr::Variable(token) => token.line(),
+        }
+    }
+
+    fn span(&self) -> miette::SourceSpan {
+        match self {
+            Expr::Literal { token, .. } => token.span(),
+            Expr::Grouping(expr) => expr.span(),
+            Expr::Unary { right, .. } => (right.span().offset(), '-'.len_utf8()).into(),
+            Expr::Binary {
+                left,
+                operator: _operator,
+                right,
+            } => {
+                // TODO: take into account the length of the operator
+                let length = left.source_map().length + right.source_map().length;
+                (left.span().offset(), length).into()
+            }
+            Expr::Assign { value, .. } => value.span(),
+            Expr::Variable(token) => token.span(),
         }
     }
 }

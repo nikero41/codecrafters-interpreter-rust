@@ -1,11 +1,12 @@
 use miette::SourceCode;
 
 use crate::FANCY_ERROR;
+use crate::debug::Debugable;
 use crate::expression::{Expr, ExpressionParser};
 use crate::{
     stages::StageResult,
     stages::errors::ParseError,
-    statements::{StatementParser, Stmt},
+    statement::Stmt,
     token::TokenStream,
     token::{Keyword, Token, TokenType},
 };
@@ -90,15 +91,64 @@ impl Parser {
         self.expr_results.iter().any(Result::is_err)
     }
 
+    pub fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let name = match self.cursor.next() {
+            Some(
+                token @ Token {
+                    token_type: TokenType::Identifier(_),
+                    ..
+                },
+            ) => Ok(token),
+            _ => {
+                let token = self.cursor.next().ok_or(ParseError::Eof {
+                    message: "Unexpected EOF",
+                })?;
+                Err(ParseError::IdentifierExpected {
+                    line: token.line(),
+                    identifier_type: "identifier",
+                    span: token.span(),
+                })
+            }
+        }?;
+
+        let expr = if self.cursor.match_tokens(&[TokenType::Assign]).is_some() {
+            Some(ExpressionParser::parse(&mut self.cursor)?)
+        } else {
+            None
+        };
+
+        self.cursor.match_tokens(&[TokenType::SemiColon]);
+        Ok(Stmt::DeclareVar { name, expr })
+    }
+
     pub fn parse(&mut self) {
         while let Some(token) = self.cursor.peek()
             && token.token_type != TokenType::Eof
         {
-            let expr = StatementParser::parse(&mut self.cursor);
-            if expr.is_err() {
+            let stmt = match token.token_type {
+                TokenType::Keyword(Keyword::Print) => {
+                    self.cursor.next();
+                    ExpressionParser::parse(&mut self.cursor).map(|expr| {
+                        self.cursor.match_tokens(&[TokenType::SemiColon]);
+                        Stmt::Print(expr)
+                    })
+                }
+
+                TokenType::Keyword(Keyword::Var) => {
+                    self.cursor.next();
+                    self.var_declaration()
+                }
+
+                _ => ExpressionParser::parse(&mut self.cursor).map(|expr| {
+                    self.cursor.match_tokens(&[TokenType::SemiColon]);
+                    Stmt::Expr(expr)
+                }),
+            };
+
+            if stmt.is_err() {
                 self.synchronize();
             }
-            self.results.push(expr);
+            self.results.push(stmt);
         }
     }
 

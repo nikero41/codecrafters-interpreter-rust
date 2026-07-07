@@ -3,10 +3,9 @@ use miette::Result;
 use std::{io::Write, path::PathBuf};
 
 use codecrafters_interpreter::{
-    expression::interpret::Interpretable,
+    environment::Environment,
     source_file::SourceFile,
     stages::{Parser, Scanner, StageResult},
-    statements::Executable,
 };
 
 #[derive(ClapParser)]
@@ -108,7 +107,8 @@ fn main() -> Result<()> {
 
             let expressions = parser.expressions();
             if !expressions.is_empty() {
-                match expressions[0].interpret() {
+                let mut env = Environment::default();
+                match expressions[0].clone().eval(&mut env) {
                     Ok(value) => println!("{}", value),
                     Err(err) => {
                         eprintln!("{}", err);
@@ -136,10 +136,11 @@ fn main() -> Result<()> {
                 std::process::exit(65)
             }
 
+            let mut env = Environment::default();
             parser
                 .statements()
-                .iter()
-                .for_each(|stmt| match stmt.execute() {
+                .into_iter()
+                .for_each(|stmt| match stmt.execute(&mut env) {
                     Ok(_) => {}
                     Err(err) => {
                         eprintln!("{}", err);

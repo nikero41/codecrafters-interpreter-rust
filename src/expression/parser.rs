@@ -1,20 +1,20 @@
 use crate::{
+    debug::Debugable,
     expression::{BinaryOp, Expr, UnaryOp},
     stages::ParseError,
-    token::{TokenStream, TokenType},
+    token::{Token, TokenStream, TokenType},
     values::LoxValue,
 };
 
-pub struct ExpressionParser<'a> {
-    stream: &'a mut TokenStream,
-}
+pub struct ExpressionParser<'a>(&'a mut TokenStream);
 
 impl<'a> ExpressionParser<'a> {
     pub fn parse(stream: &'a mut TokenStream) -> Result<Expr, ParseError> {
-        let mut parser = Self { stream };
+        let mut parser = Self(stream);
         parser.expression()
     }
 
+    /// binary → operant ( ( token_types ) operrant )* ;
     fn match_binary(
         &mut self,
         operant: fn(&mut Self) -> Result<Expr, ParseError>,
@@ -22,7 +22,7 @@ impl<'a> ExpressionParser<'a> {
     ) -> Result<Expr, ParseError> {
         let mut expr = operant(self)?;
 
-        while let Some(operator) = self.stream.match_tokens(token_types) {
+        while let Some(operator) = self.0.match_tokens(token_types) {
             expr = Expr::Binary {
                 left: Box::new(expr),
                 operator: BinaryOp::try_from(&operator.token_type).unwrap(),
@@ -33,9 +33,31 @@ impl<'a> ExpressionParser<'a> {
         Ok(expr)
     }
 
-    /// expression → equality ;
+    /// expression → assignment ;
     fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.equality()
+        self.assignment()
+    }
+
+    /// assignment → IDENTIFIER "=" assignment | equality ;
+    fn assignment(&mut self) -> Result<Expr, ParseError> {
+        let expr = self.equality()?;
+
+        if self.0.match_tokens(&[TokenType::Assign]).is_some() {
+            if let Expr::Variable(token) = expr {
+                let assignment = self.assignment()?;
+                Ok(Expr::Assign {
+                    token,
+                    value: Box::new(assignment),
+                })
+            } else {
+                Err(ParseError::InvalidAssignment {
+                    line: expr.line(),
+                    span: expr.span(),
+                })
+            }
+        } else {
+            Ok(expr)
+        }
     }
 
     /// equality → comparison ( ( "!=" | "==" ) comparison )* ;
@@ -68,10 +90,7 @@ impl<'a> ExpressionParser<'a> {
 
     /// unary → ( "!" | "-" ) unary | primary ;
     fn unary(&mut self) -> Result<Expr, ParseError> {
-        match self
-            .stream
-            .match_tokens(&[TokenType::Bang, TokenType::Minus])
-        {
+        match self.0.match_tokens(&[TokenType::Bang, TokenType::Minus]) {
             Some(operator) => Ok(Expr::Unary {
                 operator: UnaryOp::try_from(&operator.token_type).unwrap(),
                 right: Box::new(self.unary()?),
@@ -80,22 +99,27 @@ impl<'a> ExpressionParser<'a> {
         }
     }
 
-    /// primary → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" ;
+    /// primary → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER ;
     fn primary(&mut self) -> Result<Expr, ParseError> {
-        match self.stream.next() {
+        match self.0.next() {
             Some(token) if token.token_type == TokenType::LeftParen => {
                 let expr = self.expression()?;
-                if self.stream.match_tokens(&[TokenType::RightParen]).is_some() {
+                if self.0.match_tokens(&[TokenType::RightParen]).is_some() {
                     Ok(Expr::Grouping(Box::new(expr)))
                 } else {
-                    let token = self.stream.next().unwrap();
-
                     Err(ParseError::UnterminatedParen {
-                        line: token.line(),
-                        span: token.span(),
+                        line: expr.line(),
+                        span: expr.span(),
                     })
                 }
             }
+
+            Some(
+                token @ Token {
+                    token_type: TokenType::Identifier(_),
+                    ..
+                },
+            ) => Ok(Expr::Variable(token)),
 
             Some(token) => LoxValue::try_from(&token)
                 .map(|value| Expr::Literal {
@@ -107,14 +131,13 @@ impl<'a> ExpressionParser<'a> {
                     ParseError::ExpressionExpected {
                         line: token.line(),
                         lexeme,
-                        message: "Expect expression.".to_string(),
+                        message: "Expect expression.",
                         span: token.span(),
                     }
                 }),
 
             _ => Err(ParseError::Eof {
-                line: 0,
-                message: "Unexpected end of file.".to_string(),
+                message: "Unexpected end of file.",
             }),
         }
     }

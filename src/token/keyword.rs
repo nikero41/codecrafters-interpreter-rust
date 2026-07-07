@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 pub const SPECIAL_START_CHARS: [char; 1] = ['_'];
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Keyword {
     And,
     Class,

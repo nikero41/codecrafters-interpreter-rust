@@ -1,6 +1,6 @@
 use crate::{
     FANCY_ERROR,
-    debug::{DebugInfo, Location},
+    debug::{LocationTracker, SourceMap},
     stages::StageResult,
 };
 use std::{iter::Peekable, str::Chars};
@@ -15,14 +15,14 @@ use crate::{
 pub struct Scanner<'a> {
     cursor: Peekable<Chars<'a>>,
     results: Vec<Result<Token, ScanError>>,
-    location: Location,
+    location_tracker: LocationTracker,
 }
 
 impl<'a> Scanner<'a> {
     pub fn new(content: &'a str) -> Self {
         Self {
             cursor: content.chars().peekable(),
-            location: Location::new(1, -1, 0),
+            location_tracker: LocationTracker::default(),
             results: Vec::new(),
         }
     }
@@ -44,7 +44,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn update_position(&mut self, char: char) {
-        self.location.advance(char);
+        self.location_tracker.advance(char);
     }
 
     fn parse_until_before_eq(&mut self, terminator: &[char]) -> String {
@@ -69,15 +69,18 @@ impl<'a> Scanner<'a> {
     }
 
     fn string(&mut self) -> Result<TokenType, ScanError> {
-        let start_offset = self.location.offset;
+        let start_location = self.location_tracker.current();
         let literal = self.parse_until_before_eq(&['"']);
 
         match self.next_if_eq(&'"') {
             Some(_) => Ok(TokenType::String(literal)),
             None => Err(ScanError::UnterminatedString {
-                line: self.location.line,
-                span: (start_offset+1, literal.len()).into(),
-                string: literal,
+                line: start_location.line,
+                span: (
+                    start_location.offset + 1,
+                    literal.split('\n').collect::<Vec<&str>>()[0].len(),
+                )
+                    .into(),
             }),
         }
     }
@@ -94,11 +97,7 @@ impl<'a> Scanner<'a> {
             if !char.is_ascii_digit() {
                 return Ok(TokenType::Number(literal));
                 // NOTE: add this if alphabetical characters are not allowed
-                // return Err(ScanError::InvalidCharacter {
-                //     line: self.current_line,
-                //     character: *char,
-                //     span: self.location.offset.into(),
-                // });
+                // return Err(ScanError::InvalidCharacter { });
             }
 
             literal.push('.');
@@ -109,31 +108,27 @@ impl<'a> Scanner<'a> {
         Ok(TokenType::Number(literal))
         // NOTE: add this if alphabetical characters are not allowed
         // match self.cursor.peek() {
-        //     Some(char) if char.is_ascii_alphabetic() => Err(ScanError::InvalidCharacter {
-        //         line: self.current_line,
-        //         character: *char,
-        //         span: (self.location.offset + 1).into(),
-        //     }),
+        //     Some(char) if char.is_ascii_alphabetic() => Err(ScanError::InvalidCharacter { }),
         //     _ => Ok(TokenType::Number(literal)),
         // }
     }
 
     fn identifier(&mut self, initial: char) -> Result<TokenType, ScanError> {
-        // println!("🪚 self.location: {:?}", self.location);
         let result = self.parse_until(|char| char.is_ascii_alphanumeric() || char == &'_');
 
         let mut literal = String::from(initial);
         literal.push_str(&result);
 
-        match literal.parse::<Keyword>() {
-            Ok(keyword) => Ok(TokenType::Keyword(keyword)),
-            Err(_) => Ok(TokenType::Identifier(literal)),
+        if let Ok(keyword) = literal.parse::<Keyword>() {
+            Ok(TokenType::Keyword(keyword))
+        } else {
+            Ok(TokenType::Identifier(literal))
         }
     }
 
     pub fn scan(&mut self) {
         while let Some(char) = self.next() {
-            let debug = DebugInfo::new(self.location);
+            let source_map: SourceMap = self.location_tracker.current().into();
 
             let token_type = match char {
                 ' ' | '\t' | '\n' | '\r' => continue,
@@ -149,7 +144,7 @@ impl<'a> Scanner<'a> {
                 '-' => Ok(TokenType::Minus),
                 '/' => match self.next_if_eq(&'/') {
                     Some(_) => {
-                        let _ = self.parse_until_before_eq(&['\n']);
+                        self.parse_until_before_eq(&['\n']);
                         continue;
                     }
                     None => Ok(TokenType::Slash),
@@ -176,19 +171,20 @@ impl<'a> Scanner<'a> {
                     self.identifier(x)
                 }
                 x => Err(ScanError::InvalidCharacter {
-                    line: self.location.line,
+                    line: source_map.start_location.line,
                     character: x,
-                    span: self.location.offset.into(),
+                    span: source_map.start_location.offset.into(),
                 }),
             };
 
-            let token = token_type.map(|token_type| Token::new(token_type, debug));
+            let token = token_type.map(|token_type| Token::new(token_type, source_map));
 
             self.results.push(token);
         }
 
-        let debug = DebugInfo::new(self.location);
-        self.results.push(Ok(Token::new(TokenType::Eof, debug)));
+        let source_map = self.location_tracker.current().into();
+        self.results
+            .push(Ok(Token::new(TokenType::Eof, source_map)));
     }
 
     pub fn tokens(&self) -> Vec<Token> {

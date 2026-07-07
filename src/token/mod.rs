@@ -5,16 +5,16 @@ use miette::SourceSpan;
 pub use token_stream::*;
 pub use token_type::*;
 
-use crate::debug::DebugInfo;
+use crate::debug::{SourceMap, Debugable};
 
 mod keyword;
 mod token_stream;
 mod token_type;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Token {
     pub token_type: TokenType,
-    pub debug: DebugInfo,
+    source_map: SourceMap,
 }
 
 impl Display for Token {
@@ -24,20 +24,21 @@ impl Display for Token {
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, debug: DebugInfo) -> Self {
-        Self { token_type, debug }
+    pub fn new(token_type: TokenType, source_map: SourceMap) -> Self {
+        Self { token_type, source_map }
+    }
+}
+
+impl Debugable for Token {
+    fn source_map(&self) -> &SourceMap {
+        &self.source_map
     }
 
-    pub fn line(&self) -> u32 {
-        self.debug.location.line
+    fn line(&self) -> u32 {
+        self.source_map.start_location.line
     }
 
-    pub fn span(&self) -> SourceSpan {
-        let span_length = self.token_type.lexeme().chars().count();
-        if span_length == 1 {
-            self.debug.location.offset.into()
-        } else {
-            (self.debug.location.offset, span_length).into()
-        }
+    fn span(&self) -> SourceSpan {
+        (&self.source_map).into()
     }
 }

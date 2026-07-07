@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::token::Keyword;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum TokenType {
     LeftParen,
     RightParen,

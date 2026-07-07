@@ -15,24 +15,36 @@ pub enum ScanError {
         line: u32,
         #[label]
         span: SourceSpan,
-        string: String,
     },
 }
 
 #[derive(Debug, Error, Diagnostic, Clone)]
 pub enum ParseError {
-    #[error("[line {line}] Error at end: {message}")]
-    Eof { line: u32, message: String },
+    #[error("[line EOF] Error at end: {message}")]
+    Eof { message: &'static str },
     #[error("[line {line}] Error at '{lexeme}': {message}")]
     ExpressionExpected {
         line: u32,
         lexeme: String,
-        message: String,
+        message: &'static str,
+        #[label]
+        span: SourceSpan,
+    },
+    #[error("[line {line}] Expect {identifier_type}")]
+    IdentifierExpected {
+        line: u32,
+        identifier_type: &'static str,
         #[label]
         span: SourceSpan,
     },
     #[error("[line {line}] Error: Unterminated paren.")]
     UnterminatedParen {
+        line: u32,
+        #[label]
+        span: SourceSpan,
+    },
+    #[error("[line {line}] Error: Invalid assignment target.")]
+    InvalidAssignment {
         line: u32,
         #[label]
         span: SourceSpan,
