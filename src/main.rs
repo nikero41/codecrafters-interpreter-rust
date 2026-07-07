@@ -137,16 +137,12 @@ fn main() -> Result<()> {
             }
 
             let mut env = Environment::default();
-            parser
-                .statements()
-                .into_iter()
-                .for_each(|stmt| match stmt.execute(&mut env) {
-                    Ok(_) => {}
-                    Err(err) => {
-                        eprintln!("{}", err);
-                        std::process::exit(70);
-                    }
-                });
+            parser.statements().into_iter().try_for_each(|stmt| {
+                stmt.execute(&mut env).inspect_err(|err| {
+                    eprintln!("{}", err);
+                    std::process::exit(70);
+                })
+            })?;
         }
     }
 

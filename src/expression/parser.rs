@@ -136,9 +136,7 @@ impl<'a> ExpressionParser<'a> {
                     }
                 }),
 
-            _ => Err(ParseError::Eof {
-                message: "Unexpected end of file.",
-            }),
+            _ => panic!("Unexpected end of file."),
         }
     }
 }

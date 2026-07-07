@@ -1,8 +1,8 @@
 use miette::SourceCode;
 
 use crate::FANCY_ERROR;
-use crate::debug::Debugable;
 use crate::expression::{Expr, ExpressionParser};
+use crate::statement::StatementParser;
 use crate::{
     stages::StageResult,
     stages::errors::ParseError,
@@ -42,7 +42,9 @@ impl Parser {
             ])
             .is_none()
         {
-            self.cursor.next();
+            if self.cursor.next().is_none() {
+                return;
+            }
         }
     }
 
@@ -91,64 +93,18 @@ impl Parser {
         self.expr_results.iter().any(Result::is_err)
     }
 
-    pub fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let name = match self.cursor.next() {
-            Some(
-                token @ Token {
-                    token_type: TokenType::Identifier(_),
-                    ..
-                },
-            ) => Ok(token),
-            _ => {
-                let token = self.cursor.next().ok_or(ParseError::Eof {
-                    message: "Unexpected EOF",
-                })?;
-                Err(ParseError::IdentifierExpected {
-                    line: token.line(),
-                    identifier_type: "identifier",
-                    span: token.span(),
-                })
-            }
-        }?;
-
-        let expr = if self.cursor.match_tokens(&[TokenType::Assign]).is_some() {
-            Some(ExpressionParser::parse(&mut self.cursor)?)
-        } else {
-            None
-        };
-
-        self.cursor.match_tokens(&[TokenType::SemiColon]);
-        Ok(Stmt::DeclareVar { name, expr })
-    }
-
     pub fn parse(&mut self) {
         while let Some(token) = self.cursor.peek()
             && token.token_type != TokenType::Eof
         {
-            let stmt = match token.token_type {
-                TokenType::Keyword(Keyword::Print) => {
-                    self.cursor.next();
-                    ExpressionParser::parse(&mut self.cursor).map(|expr| {
-                        self.cursor.match_tokens(&[TokenType::SemiColon]);
-                        Stmt::Print(expr)
-                    })
-                }
+            let stmt = StatementParser::parse(&mut self.cursor);
 
-                TokenType::Keyword(Keyword::Var) => {
-                    self.cursor.next();
-                    self.var_declaration()
-                }
-
-                _ => ExpressionParser::parse(&mut self.cursor).map(|expr| {
-                    self.cursor.match_tokens(&[TokenType::SemiColon]);
-                    Stmt::Expr(expr)
-                }),
-            };
-
-            if stmt.is_err() {
+            if let Err(parse_error) = &stmt
+                && parse_error.needs_sync()
+            {
                 self.synchronize();
             }
-            self.results.push(stmt);
+            self.results.push(stmt.clone());
         }
     }
 

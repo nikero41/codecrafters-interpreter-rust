@@ -20,8 +20,8 @@ pub enum ScanError {
 
 #[derive(Debug, Error, Diagnostic, Clone)]
 pub enum ParseError {
-    #[error("[line EOF] Error at end: {message}")]
-    Eof { message: &'static str },
+    #[error("[line {line}] Error at end: {message}")]
+    Eof { line: u32, message: &'static str },
     #[error("[line {line}] Error at '{lexeme}': {message}")]
     ExpressionExpected {
         line: u32,
@@ -49,4 +49,13 @@ pub enum ParseError {
         #[label]
         span: SourceSpan,
     },
+}
+
+impl ParseError {
+    pub fn needs_sync(&self) -> bool {
+        !matches!(
+            self,
+            ParseError::InvalidAssignment { .. } | ParseError::Eof { .. }
+        )
+    }
 }

@@ -21,7 +21,7 @@ pub enum RuntimeError {
         #[label]
         span: SourceSpan,
     },
-    #[error("[line {line}] Operands must be two numbers or two strings.")]
+    #[error("[line {line}] Undefined variable '{name}'.")]
     UndefinedVariable {
         name: String,
         line: u32,

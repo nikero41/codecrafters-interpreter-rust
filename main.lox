@@ -2,6 +2,18 @@
 
 var test = true;
 
+var a = 1;
+
+{
+  {
+    var a = 2;
+    a = 4;
+    print a;
+
+}
+
+print a;
+
 // print "Hello World!";
 
 // (23 + 68 - 36) > (34 - 23) * 2
@@ -10,7 +22,7 @@ var test = true;
 // print !false;
 // -80
 
-65 + "hello"
+// 65 + "hello"
 
 // 64 > -80
 

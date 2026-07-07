@@ -4,11 +4,11 @@ mod errors;
 pub use errors::*;
 
 #[derive(Debug, Default)]
-pub struct Interpreter {
-    environment: Environment,
+pub struct Interpreter<'a> {
+    environment: Environment<'a>,
 }
 
-impl Interpreter {
+impl<'a> Interpreter<'a> {
     pub fn new() -> Self {
         Self {
             environment: Environment::default(),

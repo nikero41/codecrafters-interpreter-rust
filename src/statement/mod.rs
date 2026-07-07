@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use crate::{
+    debug::Debugable,
     environment::Environment,
     expression::{Expr, ExpressionParser},
     interpreter::RuntimeError,
@@ -17,6 +18,8 @@ pub enum Stmt {
     Print(Expr),
     /// exprStmt → expression ";" ;
     Expr(Expr),
+    /// block → "{" declaration* "}" ;
+    Block(Vec<Stmt>),
 }
 
 impl Stmt {
@@ -27,6 +30,12 @@ impl Stmt {
                 println!("{}", value);
             }
             Stmt::Expr(expr) => expr.eval(env).map(|_| ())?,
+            Stmt::Block(stmts) => {
+                let mut block_env = Environment::new(Some(env));
+                stmts
+                    .into_iter()
+                    .try_for_each(|stmt| stmt.execute(&mut block_env))?
+            }
             Stmt::DeclareVar { name, expr } => {
                 let value = if let Some(expr) = expr {
                     expr.eval(env)?
@@ -48,6 +57,7 @@ impl Display for Stmt {
             Stmt::Print(_) => write!(f, "PRINT"),
             Stmt::Expr(_) => write!(f, "EXPR"),
             Stmt::DeclareVar { .. } => write!(f, "DECLARE"),
+            Stmt::Block { .. } => write!(f, "DECLARE"),
         }
     }
 }
@@ -56,35 +66,42 @@ pub struct StatementParser<'a>(&'a mut TokenStream);
 
 impl<'a> StatementParser<'a> {
     pub fn parse(stream: &'a mut TokenStream) -> Result<Stmt, ParseError> {
-        let parser = Self(stream);
+        let mut parser = Self(stream);
 
         match parser.0.peek() {
             Some(Token {
                 token_type: TokenType::Keyword(Keyword::Var),
                 ..
-            }) => {
-                parser.0.next();
-                let name = parser.0.next().ok_or(ParseError::Eof {
-                    message: "Unexpected EOF",
-                })?;
-
-                let expr = if parser.0.match_tokens(&[TokenType::Assign]).is_some() {
-                    Some(ExpressionParser::parse(parser.0)?)
-                } else {
-                    None
-                };
-
-                parser.0.match_tokens(&[TokenType::SemiColon]);
-                Ok(Stmt::DeclareVar { name, expr })
-            }
+            }) => parser.var_declaration(),
             Some(Token {
                 token_type: TokenType::Keyword(Keyword::Print),
                 ..
             }) => {
                 parser.0.next();
-                let expr = ExpressionParser::parse(parser.0)?;
-                parser.0.match_tokens(&[TokenType::SemiColon]);
-                Ok(Stmt::Print(expr))
+                ExpressionParser::parse(parser.0).map(|expr| {
+                    parser.0.match_tokens(&[TokenType::SemiColon]);
+                    Stmt::Print(expr)
+                })
+            }
+            Some(Token {
+                token_type: TokenType::LeftBrace,
+                ..
+            }) => {
+                parser.0.next();
+                let mut stmts = Vec::new();
+                while parser.0.match_tokens(&[TokenType::RightBrace]).is_none() {
+                    if let Some(eof) = parser.0.match_tokens(&[TokenType::Eof]) {
+                        return Err(ParseError::Eof {
+                            message: "Expect '}'",
+                            line: eof.line(),
+                        });
+                    }
+
+                    let stmt = StatementParser::parse(parser.0)?;
+                    stmts.push(stmt);
+                }
+
+                Ok(Stmt::Block(stmts))
             }
             _ => {
                 let expr = ExpressionParser::parse(parser.0)?;
@@ -92,5 +109,36 @@ impl<'a> StatementParser<'a> {
                 Ok(Stmt::Expr(expr))
             }
         }
+    }
+
+    fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let var_token = self.0.next().unwrap();
+
+        let name = match self.0.next() {
+            Some(
+                token @ Token {
+                    token_type: TokenType::Identifier(_),
+                    ..
+                },
+            ) => Ok(token),
+            Some(token) => Err(ParseError::IdentifierExpected {
+                line: token.line(),
+                identifier_type: "identifier",
+                span: token.span(),
+            }),
+            None => Err(ParseError::Eof {
+                line: var_token.line(),
+                message: "Unexpected EOF",
+            }),
+        }?;
+
+        let expr = if self.0.match_tokens(&[TokenType::Assign]).is_some() {
+            Some(ExpressionParser::parse(self.0)?)
+        } else {
+            None
+        };
+
+        self.0.match_tokens(&[TokenType::SemiColon]);
+        Ok(Stmt::DeclareVar { name, expr })
     }
 }
