@@ -1,18 +1,18 @@
 // (42 != 22) == ((-52 + 54) >= (79 * 83))
 
-var test = true;
-
-var a = 1;
-
 {
+  var baz = "outer baz";
+  var foo = "outer foo";
   {
-    var a = 2;
-    a = 4;
-    print a;
-
+    baz = "modified baz";
+    var foo = "inner foo";
+    print baz;
+    print foo;
+  }
+  print baz;
+  print foo;
 }
-
-print a;
+print baz;
 
 // print "Hello World!";
 

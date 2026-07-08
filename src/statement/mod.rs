@@ -1,8 +1,12 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    rc::Rc,
+};
 
 use crate::{
     debug::Debugable,
-    environment::Environment,
+    environment::{Environment, EnvironmentRef},
     expression::{Expr, ExpressionParser},
     interpreter::RuntimeError,
     stages::ParseError,
@@ -23,28 +27,31 @@ pub enum Stmt {
 }
 
 impl Stmt {
-    pub fn execute(self, env: &mut Environment) -> Result<(), RuntimeError> {
+    pub fn execute(self, env: EnvironmentRef) -> Result<(), RuntimeError> {
         match self {
             Stmt::Print(expr) => {
                 let value = expr.eval(env)?;
                 println!("{}", value);
             }
             Stmt::Expr(expr) => expr.eval(env).map(|_| ())?,
+
             Stmt::Block(stmts) => {
-                let mut block_env = Environment::new(Some(env));
+                let block_env = Rc::new(RefCell::new(Environment::new_sub(Rc::clone(&env))));
                 stmts
                     .into_iter()
-                    .try_for_each(|stmt| stmt.execute(&mut block_env))?
+                    .try_for_each(|stmt| stmt.execute(Rc::clone(&block_env)))?
             }
+
             Stmt::DeclareVar { name, expr } => {
                 let value = if let Some(expr) = expr {
-                    expr.eval(env)?
+                    expr.eval(Rc::clone(&env))?
                 } else {
                     LoxValue::Nil {
                         token: name.clone(),
                     }
                 };
-                env.define(name.token_type.lexeme(), value.clone());
+                env.borrow_mut()
+                    .define(name.token_type.lexeme(), value.clone());
             }
         }
         Ok(())

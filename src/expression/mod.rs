@@ -1,7 +1,10 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    rc::Rc,
+};
 
 use crate::{
-    debug::Debugable, environment::Environment, interpreter::RuntimeError, token::Token,
+    debug::Debugable, environment::EnvironmentRef, interpreter::RuntimeError, token::Token,
     values::LoxValue,
 };
 
@@ -40,7 +43,7 @@ pub enum Expr {
 }
 
 impl Expr {
-    pub fn eval(self, env: &mut Environment) -> Result<LoxValue, RuntimeError> {
+    pub fn eval(self, env: EnvironmentRef) -> Result<LoxValue, RuntimeError> {
         match self {
             Expr::Literal { value, .. } => Ok(value),
             Expr::Grouping(expr) => expr.eval(env),
@@ -74,7 +77,7 @@ impl Expr {
                 operator,
                 right,
             } => {
-                let left_value = left.eval(env)?;
+                let left_value = left.eval(Rc::clone(&env))?;
                 let right_value = right.eval(env)?;
 
                 match operator {
@@ -130,11 +133,12 @@ impl Expr {
                 }
             }
             Expr::Assign { token, value } => {
-                let value = value.eval(env)?;
-                env.define(token.token_type.lexeme(), value.clone());
+                env.borrow().get(&token)?;
+                let value = value.eval(Rc::clone(&env))?;
+                env.borrow_mut().mutate(token, value.clone())?;
                 Ok(value)
             }
-            Expr::Variable(token) => env.get(&token).cloned(),
+            Expr::Variable(token) => env.borrow().get(&token),
         }
     }
 }

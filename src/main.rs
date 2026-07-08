@@ -1,6 +1,6 @@
 use clap::{Parser as ClapParser, Subcommand};
 use miette::Result;
-use std::{io::Write, path::PathBuf};
+use std::{cell::RefCell, io::Write, path::PathBuf, rc::Rc};
 
 use codecrafters_interpreter::{
     environment::Environment,
@@ -107,8 +107,8 @@ fn main() -> Result<()> {
 
             let expressions = parser.expressions();
             if !expressions.is_empty() {
-                let mut env = Environment::default();
-                match expressions[0].clone().eval(&mut env) {
+                let env = Environment::default();
+                match expressions[0].clone().eval(Rc::new(RefCell::new(env))) {
                     Ok(value) => println!("{}", value),
                     Err(err) => {
                         eprintln!("{}", err);
@@ -136,9 +136,9 @@ fn main() -> Result<()> {
                 std::process::exit(65)
             }
 
-            let mut env = Environment::default();
+            let env = Rc::new(RefCell::new(Environment::default()));
             parser.statements().into_iter().try_for_each(|stmt| {
-                stmt.execute(&mut env).inspect_err(|err| {
+                stmt.execute(Rc::clone(&env)).inspect_err(|err| {
                     eprintln!("{}", err);
                     std::process::exit(70);
                 })

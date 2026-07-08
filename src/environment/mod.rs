@@ -1,18 +1,27 @@
-use std::collections::HashMap;
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{debug::Debugable, interpreter::RuntimeError, token::Token, values::LoxValue};
 
-#[derive(Debug, Clone)]
-pub struct Environment<'a> {
+#[derive(Debug)]
+pub struct Environment {
     values: HashMap<String, LoxValue>,
-    enclosing: Option<&'a Environment<'a>>,
+    enclosing: Option<EnvironmentRef>,
 }
 
-impl<'a> Environment<'a> {
-    pub fn new(parent: Option<&'a Environment>) -> Self {
+pub type EnvironmentRef = Rc<RefCell<Environment>>;
+
+impl Environment {
+    pub fn new(parent: Option<EnvironmentRef>) -> Self {
         Self {
             values: HashMap::new(),
             enclosing: parent,
+        }
+    }
+
+    pub fn new_sub(parent: EnvironmentRef) -> Self {
+        Self {
+            values: HashMap::new(),
+            enclosing: Some(parent),
         }
     }
 
@@ -20,11 +29,30 @@ impl<'a> Environment<'a> {
         self.values.insert(name, value);
     }
 
-    pub fn get(&self, name: &Token) -> Result<&LoxValue, RuntimeError> {
+    pub fn mutate(&mut self, name_token: Token, value: LoxValue) -> Result<(), RuntimeError> {
+        let name = name_token.token_type.lexeme();
+        match self.values.get(&name) {
+            Some(_) => {
+                self.values.insert(name, value);
+            }
+            None => match &mut self.enclosing {
+                Some(env) => env.borrow_mut().mutate(name_token, value),
+                None => Err(RuntimeError::UndefinedVariable {
+                    name,
+                    line: name_token.line(),
+                    span: name_token.span(),
+                }),
+            }?,
+        }
+
+        Ok(())
+    }
+
+    pub fn get(&self, name: &Token) -> Result<LoxValue, RuntimeError> {
         match self.values.get(&name.token_type.lexeme()) {
-            Some(value) => Ok(value),
-            None => match self.enclosing {
-                Some(env) => env.get(name),
+            Some(value) => Ok(value.clone()),
+            None => match &self.enclosing {
+                Some(env) => env.borrow().get(name),
                 None => Err(RuntimeError::UndefinedVariable {
                     name: name.token_type.lexeme(),
                     line: name.line(),
@@ -35,7 +63,7 @@ impl<'a> Environment<'a> {
     }
 }
 
-impl Default for Environment<'_> {
+impl Default for Environment {
     fn default() -> Self {
         Self::new(None)
     }
