@@ -5,14 +5,15 @@ use std::{
 };
 
 use crate::{
-    debug::Debugable,
     environment::{Environment, EnvironmentRef},
-    expression::{Expr, ExpressionParser},
+    expression::Expr,
     interpreter::RuntimeError,
-    stages::ParseError,
-    token::{Keyword, Token, TokenStream, TokenType},
+    token::Token,
     values::LoxValue,
 };
+
+mod parser;
+pub use parser::*;
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
@@ -24,6 +25,14 @@ pub enum Stmt {
     Expr(Expr),
     /// block → "{" declaration* "}" ;
     Block(Vec<Stmt>),
+    /// ifStmt → "if" "(" expression ")" statement ( "else" statement )? ;
+    If {
+        condition: Expr,
+        then_branch: Box<Stmt>,
+        else_branch: Option<Box<Stmt>>,
+    },
+    /// whileStmt → "while" "(" expression ")" statement ;
+    While { condition: Expr, body: Box<Stmt> },
 }
 
 impl Stmt {
@@ -53,6 +62,29 @@ impl Stmt {
                 env.borrow_mut()
                     .define(name.token_type.lexeme(), value.clone());
             }
+
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let if_env = Rc::new(RefCell::new(Environment::new_sub(Rc::clone(&env))));
+                let condition_value = condition.eval(Rc::clone(&if_env))?.to_bool();
+                if condition_value {
+                    then_branch.execute(Rc::clone(&if_env))?;
+                } else if let Some(else_branch) = else_branch {
+                    else_branch.execute(Rc::clone(&if_env))?;
+                }
+            }
+
+            Stmt::While { condition, body } => {
+                let while_env = Rc::new(RefCell::new(Environment::new_sub(Rc::clone(&env))));
+                let mut condition_value = condition.clone().eval(Rc::clone(&while_env))?.to_bool();
+                while condition_value {
+                    body.clone().execute(Rc::clone(&while_env))?;
+                    condition_value = condition.clone().eval(Rc::clone(&while_env))?.to_bool();
+                }
+            }
         }
         Ok(())
     }
@@ -65,87 +97,8 @@ impl Display for Stmt {
             Stmt::Expr(_) => write!(f, "EXPR"),
             Stmt::DeclareVar { .. } => write!(f, "DECLARE"),
             Stmt::Block { .. } => write!(f, "DECLARE"),
+            Stmt::If { .. } => write!(f, "IF"),
+            Stmt::While { .. } => write!(f, "WHILE"),
         }
-    }
-}
-
-pub struct StatementParser<'a>(&'a mut TokenStream);
-
-impl<'a> StatementParser<'a> {
-    pub fn parse(stream: &'a mut TokenStream) -> Result<Stmt, ParseError> {
-        let mut parser = Self(stream);
-
-        match parser.0.peek() {
-            Some(Token {
-                token_type: TokenType::Keyword(Keyword::Var),
-                ..
-            }) => parser.var_declaration(),
-            Some(Token {
-                token_type: TokenType::Keyword(Keyword::Print),
-                ..
-            }) => {
-                parser.0.next();
-                ExpressionParser::parse(parser.0).map(|expr| {
-                    parser.0.match_tokens(&[TokenType::SemiColon]);
-                    Stmt::Print(expr)
-                })
-            }
-            Some(Token {
-                token_type: TokenType::LeftBrace,
-                ..
-            }) => {
-                parser.0.next();
-                let mut stmts = Vec::new();
-                while parser.0.match_tokens(&[TokenType::RightBrace]).is_none() {
-                    if let Some(eof) = parser.0.match_tokens(&[TokenType::Eof]) {
-                        return Err(ParseError::Eof {
-                            message: "Expect '}'",
-                            line: eof.line(),
-                        });
-                    }
-
-                    let stmt = StatementParser::parse(parser.0)?;
-                    stmts.push(stmt);
-                }
-
-                Ok(Stmt::Block(stmts))
-            }
-            _ => {
-                let expr = ExpressionParser::parse(parser.0)?;
-                parser.0.match_tokens(&[TokenType::SemiColon]);
-                Ok(Stmt::Expr(expr))
-            }
-        }
-    }
-
-    fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let var_token = self.0.next().unwrap();
-
-        let name = match self.0.next() {
-            Some(
-                token @ Token {
-                    token_type: TokenType::Identifier(_),
-                    ..
-                },
-            ) => Ok(token),
-            Some(token) => Err(ParseError::IdentifierExpected {
-                line: token.line(),
-                identifier_type: "identifier",
-                span: token.span(),
-            }),
-            None => Err(ParseError::Eof {
-                line: var_token.line(),
-                message: "Unexpected EOF",
-            }),
-        }?;
-
-        let expr = if self.0.match_tokens(&[TokenType::Assign]).is_some() {
-            Some(ExpressionParser::parse(self.0)?)
-        } else {
-            None
-        };
-
-        self.0.match_tokens(&[TokenType::SemiColon]);
-        Ok(Stmt::DeclareVar { name, expr })
     }
 }

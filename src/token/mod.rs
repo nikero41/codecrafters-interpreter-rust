@@ -5,7 +5,7 @@ use miette::SourceSpan;
 pub use token_stream::*;
 pub use token_type::*;
 
-use crate::debug::{SourceMap, Debugable};
+use crate::debug::{Debugable, Location, SourceMap};
 
 mod keyword;
 mod token_stream;
@@ -25,7 +25,17 @@ impl Display for Token {
 
 impl Token {
     pub fn new(token_type: TokenType, source_map: SourceMap) -> Self {
-        Self { token_type, source_map }
+        Self {
+            token_type,
+            source_map,
+        }
+    }
+
+    pub fn new_dummy() -> Self {
+        Self {
+            token_type: TokenType::Dummy,
+            source_map: SourceMap::new(Location::default(), 1),
+        }
     }
 }
 

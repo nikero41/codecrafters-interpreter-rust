@@ -28,6 +28,7 @@ pub enum TokenType {
     Identifier(String),
     Keyword(Keyword),
     Eof,
+    Dummy,
 }
 
 impl TokenType {
@@ -57,6 +58,7 @@ impl TokenType {
             Self::Identifier(_) => "IDENTIFIER",
             Self::Keyword(keyword) => keyword.name(),
             Self::Eof => "EOF",
+            Self::Dummy => "Dummy",
         }
     }
 
@@ -87,6 +89,7 @@ impl TokenType {
             Self::Identifier(identifier) => identifier.to_string(),
             Self::Keyword(keyword) => format!("{}", keyword),
             Self::Eof => String::new(),
+            Self::Dummy => "DUMMY".to_string(),
         }
     }
 

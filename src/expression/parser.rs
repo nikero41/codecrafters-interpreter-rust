@@ -1,9 +1,5 @@
 use crate::{
-    debug::Debugable,
-    expression::{BinaryOp, Expr, UnaryOp},
-    stages::ParseError,
-    token::{Token, TokenStream, TokenType},
-    values::LoxValue,
+    debug::Debugable, expression::{BinaryOp, Expr, UnaryOp}, stages::ParseError, token::{Keyword, Token, TokenStream, TokenType}, values::LoxValue,
 };
 
 pub struct ExpressionParser<'a>(&'a mut TokenStream);
@@ -14,7 +10,7 @@ impl<'a> ExpressionParser<'a> {
         parser.expression()
     }
 
-    /// binary → operant ( ( token_types ) operrant )* ;
+    /// binary_match → operant ( ( token_types ) operrant )* ;
     fn match_binary(
         &mut self,
         operant: fn(&mut Self) -> Result<Expr, ParseError>,
@@ -40,7 +36,7 @@ impl<'a> ExpressionParser<'a> {
 
     /// assignment → IDENTIFIER "=" assignment | equality ;
     fn assignment(&mut self) -> Result<Expr, ParseError> {
-        let expr = self.equality()?;
+        let expr = self.logic_or()?;
 
         if self.0.match_tokens(&[TokenType::Assign]).is_some() {
             if let Expr::Variable(token) = expr {
@@ -58,6 +54,13 @@ impl<'a> ExpressionParser<'a> {
         } else {
             Ok(expr)
         }
+    }
+
+    fn logic_or(&mut self) -> Result<Expr, ParseError> {
+        self.match_binary(Self::logic_and, &[TokenType::Keyword(Keyword::Or)])
+    }
+    fn logic_and(&mut self) -> Result<Expr, ParseError> {
+        self.match_binary(Self::equality, &[TokenType::Keyword(Keyword::And)])
     }
 
     /// equality → comparison ( ( "!=" | "==" ) comparison )* ;

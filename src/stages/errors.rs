@@ -49,6 +49,14 @@ pub enum ParseError {
         #[label]
         span: SourceSpan,
     },
+    #[error("[line {line}] Error: Expect '{identifier_type}' after {before_type}.")]
+    InvalidControlFlowSyntax {
+        identifier_type: &'static str,
+        before_type: &'static str,
+        line: u32,
+        #[label]
+        span: SourceSpan,
+    },
 }
 
 impl ParseError {
