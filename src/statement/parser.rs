@@ -91,35 +91,52 @@ impl<'a> StatementParser<'a> {
             Some(Token {
                 token_type: TokenType::SemiColon,
                 ..
-            }) => None,
-            _ => Some(Stmt::Expr(ExpressionParser::parse(self.0)?)),
+            }) => {
+                self.0.next();
+                None
+            }
+            _ => {
+                let expr = Some(Stmt::Expr(ExpressionParser::parse(self.0)?));
+                self.0.match_tokens(&[TokenType::SemiColon]);
+                expr
+            }
         };
 
         let condition = match self.0.peek() {
             Some(Token {
                 token_type: TokenType::SemiColon,
                 ..
-            }) => None,
-            _ => Some(ExpressionParser::parse(self.0)?),
-        };
-        self.0.match_tokens(&[TokenType::SemiColon]).ok_or({
-            let token = self.0.peek().unwrap();
-            ParseError::InvalidControlFlowSyntax {
-                identifier_type: ";",
-                before_type: "for condition",
-                line: token.line(),
-                span: token.span(),
+            }) => {
+                self.0.next();
+                None
             }
-        })?;
+            _ => {
+                let expr = Some(ExpressionParser::parse(self.0)?);
+                if expr.is_some() {
+                    self.0.match_tokens(&[TokenType::SemiColon]);
+                }
+                expr
+            }
+        };
 
         let increment = match self.0.peek() {
             Some(Token {
-                token_type: TokenType::SemiColon | TokenType::RightParen,
+                token_type: TokenType::SemiColon,
+                ..
+            }) => {
+                self.0.next();
+                None
+            }
+            Some(Token {
+                token_type: TokenType::RightParen,
                 ..
             }) => None,
-            _ => Some(ExpressionParser::parse(self.0)?),
+            _ => {
+                let expr = Some(ExpressionParser::parse(self.0)?);
+                self.0.match_tokens(&[TokenType::SemiColon]);
+                expr
+            }
         };
-
         self.0.match_tokens(&[TokenType::RightParen]).ok_or({
             let token = self.0.peek().unwrap();
             ParseError::InvalidControlFlowSyntax {

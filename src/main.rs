@@ -5,7 +5,7 @@ use std::{io::Write, path::PathBuf};
 use codecrafters_interpreter::{
     interpreter::Interpreter,
     source_file::SourceFile,
-    stages::{Parser, Scanner, StageResult},
+    stages::{Scanner, StageResult},
 };
 
 #[derive(ClapParser)]
