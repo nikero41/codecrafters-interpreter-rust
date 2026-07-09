@@ -2,7 +2,26 @@ use std::fmt::{Display, Formatter};
 
 use crate::token::{Keyword, TokenType};
 
-// operator → "==" | "!=" | "<" | "<=" | ">" | ">=" | "+"  | "-"  | "*" | "/" | "and" | "or" ;
+// operator → "and" | "or" ;
+#[derive(Debug, Clone)]
+pub enum LogicalOp {
+    And,
+    Or,
+}
+
+impl TryFrom<&TokenType> for LogicalOp {
+    type Error = &'static str;
+
+    fn try_from(token_type: &TokenType) -> Result<Self, Self::Error> {
+        match token_type {
+            TokenType::Keyword(Keyword::And) => Ok(LogicalOp::And),
+            TokenType::Keyword(Keyword::Or) => Ok(LogicalOp::Or),
+            _ => Err("Not a logical operator"),
+        }
+    }
+}
+
+// operator → "==" | "!=" | "<" | "<=" | ">" | ">=" | "+"  | "-"  | "*" | "/" | ;
 #[derive(Debug, Clone)]
 pub enum BinaryOp {
     Equal,
@@ -15,8 +34,6 @@ pub enum BinaryOp {
     Minus,
     Multiply,
     Divide,
-    And,
-    Or,
 }
 
 impl TryFrom<&TokenType> for BinaryOp {
@@ -34,8 +51,6 @@ impl TryFrom<&TokenType> for BinaryOp {
             TokenType::Minus => Ok(BinaryOp::Minus),
             TokenType::Star => Ok(BinaryOp::Multiply),
             TokenType::Slash => Ok(BinaryOp::Divide),
-            TokenType::Keyword(Keyword::And) => Ok(BinaryOp::And),
-            TokenType::Keyword(Keyword::Or) => Ok(BinaryOp::Or),
             _ => Err("Not a binary operator"),
         }
     }
@@ -54,8 +69,6 @@ impl Display for BinaryOp {
             BinaryOp::Minus => write!(f, "{}", TokenType::Minus.lexeme()),
             BinaryOp::Multiply => write!(f, "{}", TokenType::Star.lexeme()),
             BinaryOp::Divide => write!(f, "{}", TokenType::Slash.lexeme()),
-            BinaryOp::And => write!(f, "{}", TokenType::Keyword(Keyword::And).lexeme()),
-            BinaryOp::Or => write!(f, "{}", TokenType::Keyword(Keyword::Or).lexeme()),
         }
     }
 }

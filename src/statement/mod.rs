@@ -93,12 +93,50 @@ impl Stmt {
 impl Display for Stmt {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Stmt::Print(_) => write!(f, "PRINT"),
-            Stmt::Expr(_) => write!(f, "EXPR"),
-            Stmt::DeclareVar { .. } => write!(f, "DECLARE"),
-            Stmt::Block { .. } => write!(f, "DECLARE"),
-            Stmt::If { .. } => write!(f, "IF"),
-            Stmt::While { .. } => write!(f, "WHILE"),
+            Stmt::Print(expr) => write!(f, "(Print {})", expr),
+            Stmt::Expr(expr) => write!(f, "{}", expr),
+            Stmt::DeclareVar { name, expr } => {
+                let expr_str = if let Some(expr) = expr {
+                    format!("{}", expr)
+                } else {
+                    "nil".to_string()
+                };
+                write!(f, "(DeclareVar {} {})", name.token_type.lexeme(), expr_str)
+            }
+            Stmt::Block(stmts) => {
+                let stmts_str = stmts
+                    .iter()
+                    .map(|stmt| format!("{}", stmt))
+                    .collect::<Vec<String>>()
+                    .join("\n");
+
+                write!(f, "(Block\n{}\n)", indent(stmts_str, 1))
+            }
+            Stmt::If {
+                then_branch,
+                else_branch,
+                condition,
+            } => {
+                write!(f, "(If [{}]\n{}", condition, indent(then_branch, 1))?;
+                if let Some(else_branch) = else_branch {
+                    write!(f, "Else {}", indent(else_branch, 1))?;
+                }
+                write!(f, "\n)")?;
+                Ok(())
+            }
+            Stmt::While { body, condition } => {
+                write!(f, "(While [{}]\n{}\n)", condition, indent(body, 1))
+            }
         }
     }
+}
+
+fn indent(value: impl Display, level: usize) -> String {
+    let indent = "    ".repeat(level);
+    value
+        .to_string()
+        .lines()
+        .map(|line| format!("{indent}{line}"))
+        .collect::<Vec<String>>()
+        .join("\n")
 }

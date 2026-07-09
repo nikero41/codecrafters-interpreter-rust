@@ -11,11 +11,11 @@ pub struct Environment {
 pub type EnvironmentRef = Rc<RefCell<Environment>>;
 
 impl Environment {
-    pub fn new(parent: Option<EnvironmentRef>) -> Self {
-        Self {
+    pub fn new(parent: Option<EnvironmentRef>) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
             values: HashMap::new(),
             enclosing: parent,
-        }
+        }))
     }
 
     pub fn new_sub(parent: EnvironmentRef) -> Self {
@@ -60,11 +60,5 @@ impl Environment {
                 }),
             },
         }
-    }
-}
-
-impl Default for Environment {
-    fn default() -> Self {
-        Self::new(None)
     }
 }

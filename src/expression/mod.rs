@@ -22,6 +22,12 @@ pub enum Expr {
     Grouping(Box<Expr>),
     /// unary → ( "-" | "!" ) expression ;
     Unary { operator: UnaryOp, right: Box<Expr> },
+    /// logic → logic ( "and" | "or" logic )* ;
+    Logical {
+        left: Box<Expr>,
+        operator: LogicalOp,
+        right: Box<Expr>,
+    },
     /// binary → expression operator expression ;
     Binary {
         left: Box<Expr>,
@@ -40,6 +46,11 @@ impl Expr {
             Expr::Literal { value, .. } => Ok(value),
             Expr::Grouping(expr) => expr.eval(env),
             Expr::Unary { operator, right } => Self::eval_unary(operator, *right, env),
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => Self::eval_logical(*left, operator, *right, env),
             Expr::Binary {
                 left,
                 operator,
@@ -82,6 +93,50 @@ impl Expr {
                 value: !lox_value.to_bool(),
                 token: lox_value.token().clone(),
             }),
+        }
+    }
+
+    fn eval_logical(
+        left: Expr,
+        operator: LogicalOp,
+        right: Expr,
+        env: EnvironmentRef,
+    ) -> Result<LoxValue, RuntimeError> {
+        match operator {
+            LogicalOp::And => {
+                let left_value = left.eval(Rc::clone(&env))?;
+                if !left_value.to_bool() {
+                    return Ok(left_value);
+                }
+
+                let right_value = right.eval(env)?;
+                Ok(right_value)
+                // if right_value.to_bool() {
+                //     return Ok(right_value);
+                // }
+                //
+                // Ok(LoxValue::Bool {
+                //     value: false,
+                //     token: left_value.token().clone(),
+                // })
+            }
+            LogicalOp::Or => {
+                let left_value = left.eval(Rc::clone(&env))?;
+                if left_value.to_bool() {
+                    return Ok(left_value);
+                }
+
+                let right_value = right.eval(env)?;
+                Ok(right_value)
+                // if right_value.to_bool() {
+                //     return Ok(right_value);
+                // }
+                //
+                // Ok(LoxValue::Bool {
+                //     value: false,
+                //     token: left_value.token().clone(),
+                // })
+            }
         }
     }
 
@@ -133,14 +188,6 @@ impl Expr {
             BinaryOp::Minus => left_value.subtract(&right_value),
             BinaryOp::Multiply => left_value.multiply(&right_value),
             BinaryOp::Divide => left_value.divide(&right_value),
-            BinaryOp::And => Ok(LoxValue::Bool {
-                value: left_value.to_bool() && right_value.to_bool(),
-                token: left_value.token().clone(),
-            }),
-            BinaryOp::Or => Ok(LoxValue::Bool {
-                value: left_value.to_bool() || right_value.to_bool(),
-                token: left_value.token().clone(),
-            }),
         }
     }
 }
@@ -178,7 +225,18 @@ impl Display for Expr {
                 write!(f, "{} = {}", token.token_type.lexeme(), value)
             }
             Expr::Variable(token) => {
-                write!(f, "{}", token.token_type.lexeme())
+                write!(f, "[{}]", token.token_type.lexeme())
+            }
+            Expr::Logical {
+                left,
+                right,
+                operator,
+            } => {
+                let operator = match operator {
+                    LogicalOp::And => "AND",
+                    LogicalOp::Or => "OR",
+                };
+                write!(f, "({} {} {})", operator, left, right)
             }
         }
     }
@@ -193,6 +251,7 @@ impl Debugable for Expr {
             Expr::Binary { left, .. } => left.source_map(),
             Expr::Assign { value, .. } => value.source_map(),
             Expr::Variable(token) => token.source_map(),
+            Expr::Logical { left, .. } => left.source_map(),
         }
     }
 
@@ -204,6 +263,7 @@ impl Debugable for Expr {
             Expr::Binary { left, .. } => left.line(),
             Expr::Assign { value, .. } => value.line(),
             Expr::Variable(token) => token.line(),
+            Expr::Logical { left, .. } => left.line(),
         }
     }
 
@@ -223,6 +283,19 @@ impl Debugable for Expr {
             }
             Expr::Assign { value, .. } => value.span(),
             Expr::Variable(token) => token.span(),
+            Expr::Logical {
+                left,
+                right,
+                operator,
+            } => {
+                let operator_length = match operator {
+                    LogicalOp::And => "and".len(),
+                    LogicalOp::Or => "or".len(),
+                };
+
+                let length = left.source_map().length + right.source_map().length + operator_length;
+                (left.span().offset(), length).into()
+            }
         }
     }
 }

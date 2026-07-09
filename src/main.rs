@@ -1,9 +1,9 @@
-use clap::{Parser as ClapParser, Subcommand};
-use miette::Result;
-use std::{cell::RefCell, io::Write, path::PathBuf, rc::Rc};
+use clap::{Args, Parser as ClapParser, Subcommand};
+use miette::{Context, Result};
+use std::{io::Write, path::PathBuf};
 
 use codecrafters_interpreter::{
-    environment::Environment,
+    interpreter::Interpreter,
     source_file::SourceFile,
     stages::{Parser, Scanner, StageResult},
 };
@@ -18,25 +18,21 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Display the tokens of the file
-    Tokenize {
-        #[arg(value_name = "FILE", default_value = "main.lox")]
-        path: PathBuf,
-    },
+    Tokenize(RunArgs),
     /// Display the AST of the file
-    Parse {
-        #[arg(value_name = "FILE", default_value = "main.lox")]
-        path: PathBuf,
-    },
+    Parse(RunArgs),
     /// Evaluate file
-    Evaluate {
-        #[arg(value_name = "FILE", default_value = "main.lox")]
-        path: PathBuf,
-    },
+    Evaluate(RunArgs),
+    /// Print the AST of the file
+    Ast(RunArgs),
     /// Run file
-    Run {
-        #[arg(value_name = "FILE", default_value = "main.lox")]
-        path: PathBuf,
-    },
+    Run(RunArgs),
+}
+
+#[derive(Args)]
+struct RunArgs {
+    #[arg(value_name = "FILE", default_value = "main.lox")]
+    path: PathBuf,
 }
 
 fn main() -> Result<()> {
@@ -57,9 +53,8 @@ fn main() -> Result<()> {
             }
         }
 
-        Some(Commands::Tokenize { path }) => {
+        Some(Commands::Tokenize(RunArgs { path })) => {
             let file = SourceFile::new(path)?;
-
             let mut scanner = Scanner::new(&file.content);
             scanner.scan();
             scanner.print(file.named_source.clone());
@@ -68,81 +63,33 @@ fn main() -> Result<()> {
             }
         }
 
-        Some(Commands::Parse { path }) => {
+        Some(Commands::Parse(RunArgs { path })) => {
             let file = SourceFile::new(path)?;
-
-            let mut scanner = Scanner::new(&file.content);
-            scanner.scan();
-            if scanner.has_errors() {
-                scanner.print_errors(file.named_source.clone());
-                std::process::exit(65)
-            }
-            let tokens = scanner.tokens();
-
-            let mut parser = Parser::new(tokens);
-            parser.parse_expr();
-            parser.print_expr(file.named_source.clone());
-            if parser.has_expr_errors() {
-                std::process::exit(65)
-            }
+            let content = file.content.lines().next().wrap_err("No content")?;
+            Interpreter::new()
+                .with_debug(file.named_source)
+                .print_ast(content);
         }
 
-        Some(Commands::Evaluate { path }) => {
+        Some(Commands::Evaluate(RunArgs { path })) => {
             let file = SourceFile::new(path)?;
-
-            let mut scanner = Scanner::new(&file.content);
-            scanner.scan();
-            if scanner.has_errors() {
-                scanner.print_errors(file.named_source.clone());
-                std::process::exit(65)
-            }
-            let tokens = scanner.tokens();
-
-            let mut parser = Parser::new(tokens);
-            parser.parse_expr();
-            if parser.has_expr_errors() {
-                parser.print_expr_errors(file.named_source.clone());
-                std::process::exit(65)
-            }
-
-            let expressions = parser.expressions();
-            if !expressions.is_empty() {
-                let env = Environment::default();
-                match expressions[0].clone().eval(Rc::new(RefCell::new(env))) {
-                    Ok(value) => println!("{}", value),
-                    Err(err) => {
-                        eprintln!("{}", err);
-                        std::process::exit(70)
-                    }
-                }
-            }
+            let content = file.content.lines().next().wrap_err("No content")?;
+            Interpreter::new()
+                .with_debug(file.named_source)
+                .run(&format!("print {};", content));
         }
 
-        Some(Commands::Run { path }) => {
-            let file = SourceFile::new(path)?;
-
-            let mut scanner = Scanner::new(&file.content);
-            scanner.scan();
-            if scanner.has_errors() {
-                scanner.print_errors(file.named_source.clone());
-                std::process::exit(65)
-            }
-            let tokens = scanner.tokens();
-
-            let mut parser = Parser::new(tokens);
-            parser.parse();
-            if parser.has_errors() {
-                parser.print_errors(file.named_source.clone());
-                std::process::exit(65)
-            }
-
-            let env = Rc::new(RefCell::new(Environment::default()));
-            parser.statements().into_iter().try_for_each(|stmt| {
-                stmt.execute(Rc::clone(&env)).inspect_err(|err| {
-                    eprintln!("{}", err);
-                    std::process::exit(70);
-                })
-            })?;
+        Some(Commands::Ast(opts)) => {
+            let file = SourceFile::new(opts.path)?;
+            Interpreter::new()
+                .with_debug(file.named_source)
+                .print_ast(&file.content)
+        }
+        Some(Commands::Run(opts)) => {
+            let file = SourceFile::new(opts.path)?;
+            Interpreter::new()
+                .with_debug(file.named_source)
+                .run(&file.content)
         }
     }
 

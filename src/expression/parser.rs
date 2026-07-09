@@ -1,5 +1,9 @@
 use crate::{
-    debug::Debugable, expression::{BinaryOp, Expr, UnaryOp}, stages::ParseError, token::{Keyword, Token, TokenStream, TokenType}, values::LoxValue,
+    debug::Debugable,
+    expression::{BinaryOp, Expr, LogicalOp, UnaryOp},
+    stages::ParseError,
+    token::{Keyword, Token, TokenStream, TokenType},
+    values::LoxValue,
 };
 
 pub struct ExpressionParser<'a>(&'a mut TokenStream);
@@ -22,6 +26,25 @@ impl<'a> ExpressionParser<'a> {
             expr = Expr::Binary {
                 left: Box::new(expr),
                 operator: BinaryOp::try_from(&operator.token_type).unwrap(),
+                right: Box::new(operant(self)?),
+            }
+        }
+
+        Ok(expr)
+    }
+
+    /// logical_match → operant ( ( token_types ) operrant )* ;
+    fn match_logical(
+        &mut self,
+        operant: fn(&mut Self) -> Result<Expr, ParseError>,
+        token_types: &[TokenType],
+    ) -> Result<Expr, ParseError> {
+        let mut expr = operant(self)?;
+
+        while let Some(operator) = self.0.match_tokens(token_types) {
+            expr = Expr::Logical {
+                left: Box::new(expr),
+                operator: LogicalOp::try_from(&operator.token_type).unwrap(),
                 right: Box::new(operant(self)?),
             }
         }
@@ -57,10 +80,10 @@ impl<'a> ExpressionParser<'a> {
     }
 
     fn logic_or(&mut self) -> Result<Expr, ParseError> {
-        self.match_binary(Self::logic_and, &[TokenType::Keyword(Keyword::Or)])
+        self.match_logical(Self::logic_and, &[TokenType::Keyword(Keyword::Or)])
     }
     fn logic_and(&mut self) -> Result<Expr, ParseError> {
-        self.match_binary(Self::equality, &[TokenType::Keyword(Keyword::And)])
+        self.match_logical(Self::equality, &[TokenType::Keyword(Keyword::And)])
     }
 
     /// equality → comparison ( ( "!=" | "==" ) comparison )* ;

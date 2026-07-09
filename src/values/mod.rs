@@ -245,10 +245,13 @@ impl LoxValue {
                 token: self.token().clone(),
             }),
 
-            (..) => Err(RuntimeError::NotNumbers {
-                line: self.token().line(),
-                span: self.token().span(),
-            }),
+            (..) => {
+                let token = self.token();
+                Err(RuntimeError::NotNumbers {
+                    line: token.line(),
+                    span: token.span(),
+                })
+            }
         }
     }
 }
