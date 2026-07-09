@@ -62,7 +62,7 @@ impl LoxValue {
         match self {
             LoxValue::Bool { value, .. } => *value,
             LoxValue::Number { value, .. } => *value > 0_f64,
-            LoxValue::String { value, .. } => !value.is_empty(),
+            LoxValue::String { value, .. } => true,
             LoxValue::Nil { .. } => false,
             LoxValue::Object { .. } => true,
         }

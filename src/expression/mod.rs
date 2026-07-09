@@ -123,19 +123,10 @@ impl Expr {
             LogicalOp::Or => {
                 let left_value = left.eval(Rc::clone(&env))?;
                 if left_value.to_bool() {
-                    return Ok(left_value);
+                    Ok(left_value)
+                } else {
+                    right.eval(env)
                 }
-
-                let right_value = right.eval(env)?;
-                Ok(right_value)
-                // if right_value.to_bool() {
-                //     return Ok(right_value);
-                // }
-                //
-                // Ok(LoxValue::Bool {
-                //     value: false,
-                //     token: left_value.token().clone(),
-                // })
             }
         }
     }
