@@ -1,6 +1,6 @@
 use crate::{
     debug::Debugable,
-    expression::{BinaryOp, Expr, LogicalOp, UnaryOp},
+    ast::expression::{BinaryOp, Expr, LogicalOp, UnaryOp},
     stages::ParseError,
     token::{Keyword, Token, TokenStream, TokenType},
     values::LoxValue,

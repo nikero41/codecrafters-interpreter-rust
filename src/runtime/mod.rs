@@ -1,15 +1,17 @@
 use std::rc::Rc;
 
 use crate::{
-    environment::{Environment, EnvironmentRef},
+    ast::declaration::Declaration,
     stages::{Parser, Scanner, StageResult},
-    statement::Stmt,
     token::Token,
 };
 
 mod errors;
 pub use errors::*;
 use miette::SourceCode;
+
+mod env;
+pub use env::*;
 
 #[derive(Debug)]
 pub struct Interpreter<S>
@@ -47,7 +49,7 @@ impl<S: SourceCode + Clone + 'static> Interpreter<S> {
         scanner.tokens()
     }
 
-    pub fn parse(&self, source_code: &str) -> Vec<Stmt> {
+    pub fn parse(&self, source_code: &str) -> Vec<Declaration> {
         let tokens = self.tokenize(source_code);
         let mut parser = Parser::new(tokens);
         parser.parse();
@@ -59,7 +61,7 @@ impl<S: SourceCode + Clone + 'static> Interpreter<S> {
             }
             std::process::exit(65)
         }
-        parser.statements()
+        parser.results()
     }
 
     pub fn run(&self, source_code: &str) {

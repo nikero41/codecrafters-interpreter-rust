@@ -1,11 +1,9 @@
-pub mod debug;
-pub mod environment;
-pub mod expression;
+mod ast;
+mod debug;
+pub mod runtime;
 pub mod source_file;
 pub mod stages;
-pub mod interpreter;
-pub mod statement;
-pub mod token;
-pub mod values;
+mod token;
+mod values;
 
 pub const FANCY_ERROR: bool = false;

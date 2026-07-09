@@ -1,8 +1,11 @@
 use crate::{
+    ast::{
+        declaration::{Declaration, DeclarationParser},
+        expression::{Expr, ExpressionParser},
+        statement::Stmt,
+    },
     debug::Debugable,
-    expression::{Expr, ExpressionParser},
     stages::ParseError,
-    statement::Stmt,
     token::{Keyword, Token, TokenStream, TokenType},
     values::LoxValue,
 };
@@ -26,10 +29,6 @@ impl<'a> StatementParser<'a> {
                 token_type: TokenType::Keyword(Keyword::If),
                 ..
             }) => parser.if_statement(),
-            Some(Token {
-                token_type: TokenType::Keyword(Keyword::Var),
-                ..
-            }) => parser.var_declaration(),
             Some(Token {
                 token_type: TokenType::Keyword(Keyword::Print),
                 ..
@@ -63,8 +62,8 @@ impl<'a> StatementParser<'a> {
                 });
             }
 
-            let stmt = StatementParser::parse(self.0)?;
-            stmts.push(stmt);
+            let declaration = DeclarationParser::parse(self.0)?;
+            stmts.push(declaration);
         }
 
         Ok(Stmt::Block(stmts))
@@ -87,7 +86,10 @@ impl<'a> StatementParser<'a> {
             Some(Token {
                 token_type: TokenType::Keyword(Keyword::Var),
                 ..
-            }) => Some(self.var_declaration()?),
+            }) => {
+                let mut parser = DeclarationParser::new(self.0);
+                Some(parser.var_declaration()?)
+            }
             Some(Token {
                 token_type: TokenType::SemiColon,
                 ..
@@ -98,7 +100,7 @@ impl<'a> StatementParser<'a> {
             _ => {
                 let expr = Some(Stmt::Expr(ExpressionParser::parse(self.0)?));
                 self.0.match_tokens(&[TokenType::SemiColon]);
-                expr
+                expr.map(Declaration::from)
             }
         };
 
@@ -150,7 +152,7 @@ impl<'a> StatementParser<'a> {
         let body = StatementParser::parse(self.0)?;
 
         let while_body = if let Some(expr) = increment {
-            Stmt::Block(vec![body, expr.into()])
+            Stmt::Block(vec![body.into(), expr.into()])
         } else {
             body
         };
@@ -170,7 +172,7 @@ impl<'a> StatementParser<'a> {
         };
 
         if let Some(initializer) = initializer {
-            Ok(Stmt::Block(vec![initializer, while_stmt]))
+            Ok(Stmt::Block(vec![initializer, while_stmt.into()]))
         } else {
             Ok(while_stmt)
         }
@@ -240,36 +242,5 @@ impl<'a> StatementParser<'a> {
             then_branch,
             else_branch,
         })
-    }
-
-    fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let var_token = self.0.next().unwrap();
-
-        let name = match self.0.next() {
-            Some(
-                token @ Token {
-                    token_type: TokenType::Identifier(_),
-                    ..
-                },
-            ) => Ok(token),
-            Some(token) => Err(ParseError::IdentifierExpected {
-                line: token.line(),
-                identifier_type: "identifier",
-                span: token.span(),
-            }),
-            None => Err(ParseError::Eof {
-                line: var_token.line(),
-                message: "Unexpected EOF",
-            }),
-        }?;
-
-        let expr = if self.0.match_tokens(&[TokenType::Assign]).is_some() {
-            Some(ExpressionParser::parse(self.0)?)
-        } else {
-            None
-        };
-
-        self.0.match_tokens(&[TokenType::SemiColon]);
-        Ok(Stmt::DeclareVar { name, expr })
     }
 }

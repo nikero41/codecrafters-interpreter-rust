@@ -3,7 +3,7 @@ use miette::{Context, Result};
 use std::{io::Write, path::PathBuf};
 
 use codecrafters_interpreter::{
-    interpreter::Interpreter,
+    runtime::Interpreter,
     source_file::SourceFile,
     stages::{Scanner, StageResult},
 };
@@ -42,12 +42,13 @@ fn main() -> Result<()> {
     match cli.command {
         None => {
             let stdin = std::io::stdin();
+            let interpreter = Interpreter::<&str>::new();
             loop {
                 print!("> ");
                 std::io::stdout().flush().unwrap();
                 let mut buf = String::new();
                 match stdin.read_line(&mut buf) {
-                    Ok(_) => {}
+                    Ok(_) => interpreter.run(&buf),
                     Err(error) => eprintln!("Error: {error}"),
                 }
             }

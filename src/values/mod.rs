@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::{
     debug::Debugable,
-    interpreter::RuntimeError,
+    runtime::RuntimeError,
     token::{Keyword, Token, TokenType},
 };
 

@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{debug::Debugable, interpreter::RuntimeError, token::Token, values::LoxValue};
+use crate::{debug::Debugable, runtime::RuntimeError, token::Token, values::LoxValue};
 
 #[derive(Debug)]
 pub struct Environment {
@@ -18,11 +18,11 @@ impl Environment {
         }))
     }
 
-    pub fn new_sub(parent: EnvironmentRef) -> Self {
-        Self {
+    pub fn new_sub(parent: EnvironmentRef) -> Rc<RefCell<Self>> {
+        Rc::new(RefCell::new(Self {
             values: HashMap::new(),
             enclosing: Some(parent),
-        }
+        }))
     }
 
     pub fn define(&mut self, name: String, value: LoxValue) {

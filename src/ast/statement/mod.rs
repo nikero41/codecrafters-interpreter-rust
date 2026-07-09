@@ -1,15 +1,11 @@
 use std::{
-    cell::RefCell,
     fmt::{Display, Formatter},
     rc::Rc,
 };
 
 use crate::{
-    environment::{Environment, EnvironmentRef},
-    expression::Expr,
-    interpreter::RuntimeError,
-    token::Token,
-    values::LoxValue,
+    ast::{declaration::Declaration, expression::Expr},
+    runtime::{Environment, EnvironmentRef, RuntimeError},
 };
 
 mod parser;
@@ -17,14 +13,12 @@ pub use parser::*;
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
-    /// varDecl → "var" IDENTIFIER ( "=" expression )? ";" ;
-    DeclareVar { name: Token, expr: Option<Expr> },
     /// printStmt → "print" expression ";" ;
     Print(Expr),
     /// exprStmt → expression ";" ;
     Expr(Expr),
     /// block → "{" declaration* "}" ;
-    Block(Vec<Stmt>),
+    Block(Vec<Declaration>),
     /// ifStmt → "if" "(" expression ")" statement ( "else" statement )? ;
     If {
         condition: Expr,
@@ -45,30 +39,29 @@ impl Stmt {
             Stmt::Expr(expr) => expr.eval(env).map(|_| ())?,
 
             Stmt::Block(stmts) => {
-                let block_env = Rc::new(RefCell::new(Environment::new_sub(Rc::clone(&env))));
+                let block_env = Environment::new_sub(Rc::clone(&env));
                 stmts
                     .into_iter()
                     .try_for_each(|stmt| stmt.execute(Rc::clone(&block_env)))?
             }
 
-            Stmt::DeclareVar { name, expr } => {
-                let value = if let Some(expr) = expr {
-                    expr.eval(Rc::clone(&env))?
-                } else {
-                    LoxValue::Nil {
-                        token: name.clone(),
-                    }
-                };
-                env.borrow_mut()
-                    .define(name.token_type.lexeme(), value.clone());
-            }
-
+            // Stmt::DeclareVar { name, expr } => {
+            //     let value = if let Some(expr) = expr {
+            //         expr.eval(Rc::clone(&env))?
+            //     } else {
+            //         LoxValue::Nil {
+            //             token: name.clone(),
+            //         }
+            //     };
+            //     env.borrow_mut()
+            //         .define(name.token_type.lexeme(), value.clone());
+            // }
             Stmt::If {
                 condition,
                 then_branch,
                 else_branch,
             } => {
-                let if_env = Rc::new(RefCell::new(Environment::new_sub(Rc::clone(&env))));
+                let if_env = Environment::new_sub(Rc::clone(&env));
                 let condition_value = condition.eval(Rc::clone(&if_env))?.to_bool();
                 if condition_value {
                     then_branch.execute(Rc::clone(&if_env))?;
@@ -78,7 +71,7 @@ impl Stmt {
             }
 
             Stmt::While { condition, body } => {
-                let while_env = Rc::new(RefCell::new(Environment::new_sub(Rc::clone(&env))));
+                let while_env = Environment::new_sub(Rc::clone(&env));
                 let mut condition_value = condition.clone().eval(Rc::clone(&while_env))?.to_bool();
                 while condition_value {
                     body.clone().execute(Rc::clone(&while_env))?;
@@ -95,14 +88,14 @@ impl Display for Stmt {
         match self {
             Stmt::Print(expr) => write!(f, "(Print {})", expr),
             Stmt::Expr(expr) => write!(f, "{}", expr),
-            Stmt::DeclareVar { name, expr } => {
-                let expr_str = if let Some(expr) = expr {
-                    format!("{}", expr)
-                } else {
-                    "nil".to_string()
-                };
-                write!(f, "(DeclareVar {} {})", name.token_type.lexeme(), expr_str)
-            }
+            // Stmt::DeclareVar { name, expr } => {
+            //     let expr_str = if let Some(expr) = expr {
+            //         format!("{}", expr)
+            //     } else {
+            //         "nil".to_string()
+            //     };
+            //     write!(f, "(DeclareVar {} {})", name.token_type.lexeme(), expr_str)
+            // }
             Stmt::Block(stmts) => {
                 let stmts_str = stmts
                     .iter()
@@ -139,4 +132,10 @@ fn indent(value: impl Display, level: usize) -> String {
         .map(|line| format!("{indent}{line}"))
         .collect::<Vec<String>>()
         .join("\n")
+}
+
+impl From<Stmt> for Declaration {
+    fn from(stmt: Stmt) -> Self {
+        Declaration::Statement(stmt)
+    }
 }

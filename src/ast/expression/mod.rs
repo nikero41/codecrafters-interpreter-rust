@@ -4,8 +4,11 @@ use std::{
 };
 
 use crate::{
-    debug::Debugable, environment::EnvironmentRef, interpreter::RuntimeError, statement::Stmt,
-    token::Token, values::LoxValue,
+    ast::{declaration::Declaration, statement::Stmt},
+    debug::Debugable,
+    runtime::{EnvironmentRef, RuntimeError},
+    token::Token,
+    values::LoxValue,
 };
 
 mod operators;
@@ -106,19 +109,10 @@ impl Expr {
             LogicalOp::And => {
                 let left_value = left.eval(Rc::clone(&env))?;
                 if !left_value.to_bool() {
-                    return Ok(left_value);
+                    Ok(left_value)
+                } else {
+                    right.eval(env)
                 }
-
-                let right_value = right.eval(env)?;
-                Ok(right_value)
-                // if right_value.to_bool() {
-                //     return Ok(right_value);
-                // }
-                //
-                // Ok(LoxValue::Bool {
-                //     value: false,
-                //     token: left_value.token().clone(),
-                // })
             }
             LogicalOp::Or => {
                 let left_value = left.eval(Rc::clone(&env))?;
@@ -294,5 +288,11 @@ impl Debugable for Expr {
 impl From<Expr> for Stmt {
     fn from(expr: Expr) -> Self {
         Stmt::Expr(expr)
+    }
+}
+
+impl From<Expr> for Declaration {
+    fn from(expr: Expr) -> Self {
+        Declaration::Statement(Stmt::Expr(expr))
     }
 }
