@@ -2,7 +2,9 @@
 
 // (42 != 22) == ((-52 + 54) >= (79 * 83))
 
-for (;;) var foo;
+print clock()();
+
+// for (;;) var foo;
 
 // if (false or "ok") print "bar";
 // if (nil or "ok") print "bar";

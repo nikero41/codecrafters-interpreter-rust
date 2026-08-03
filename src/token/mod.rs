@@ -1,5 +1,6 @@
-use std::fmt::Display;
+use std::ops::Deref;
 
+use derive_more::Display;
 pub use keyword::*;
 use miette::SourceSpan;
 pub use token_stream::*;
@@ -11,16 +12,11 @@ mod keyword;
 mod token_stream;
 mod token_type;
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Display)]
+#[display("{}", token_type)]
 pub struct Token {
     pub token_type: TokenType,
     source_map: SourceMap,
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.token_type)
-    }
 }
 
 impl Token {
@@ -50,5 +46,13 @@ impl Debugable for Token {
 
     fn span(&self) -> SourceSpan {
         (&self.source_map).into()
+    }
+}
+
+impl Deref for Token {
+    type Target = TokenType;
+
+    fn deref(&self) -> &Self::Target {
+        &self.token_type
     }
 }

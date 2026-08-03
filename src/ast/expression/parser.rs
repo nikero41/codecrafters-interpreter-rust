@@ -1,6 +1,6 @@
 use crate::{
-    debug::Debugable,
     ast::expression::{BinaryOp, Expr, LogicalOp, UnaryOp},
+    debug::Debugable,
     stages::ParseError,
     token::{Keyword, Token, TokenStream, TokenType},
     values::LoxValue,
@@ -62,17 +62,15 @@ impl<'a> ExpressionParser<'a> {
         let expr = self.logic_or()?;
 
         if self.0.match_tokens(&[TokenType::Assign]).is_some() {
-            if let Expr::Variable(token) = expr {
-                let assignment = self.assignment()?;
-                Ok(Expr::Assign {
+            match expr {
+                Expr::Variable(token) => Ok(Expr::Assign {
                     token,
-                    value: Box::new(assignment),
-                })
-            } else {
-                Err(ParseError::InvalidAssignment {
+                    value: Box::new(self.assignment()?),
+                }),
+                _ => Err(ParseError::InvalidAssignment {
                     line: expr.line(),
                     span: expr.span(),
-                })
+                }),
             }
         } else {
             Ok(expr)
@@ -121,14 +119,51 @@ impl<'a> ExpressionParser<'a> {
                 operator: UnaryOp::try_from(&operator.token_type).unwrap(),
                 right: Box::new(self.unary()?),
             }),
-            _ => self.primary(),
+            _ => self.call(),
         }
+    }
+
+    fn call(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.primary()?;
+
+        loop {
+            if self.0.match_tokens(&[TokenType::LeftParen]).is_none() {
+                break;
+            }
+
+            let mut arguments = Vec::new();
+            while let Some(token) = self
+                .0
+                .match_tokens(&[TokenType::RightParen, TokenType::Comma])
+            {
+                if token.token_type == TokenType::RightParen {
+                    expr = Expr::Call {
+                        callee: Box::new(expr),
+                        arguments,
+                        paren: token,
+                    };
+                    break;
+                }
+                if arguments.len() >= 255 {
+                    return Err(ParseError::TooManyArguments {
+                        line: expr.line(),
+                        span: expr.span(),
+                    });
+                }
+                arguments.push(self.expression()?);
+            }
+        }
+
+        Ok(expr)
     }
 
     /// primary → NUMBER | STRING | "true" | "false" | "nil" | "(" expression ")" | IDENTIFIER ;
     fn primary(&mut self) -> Result<Expr, ParseError> {
-        match self.0.next() {
-            Some(token) if token.token_type == TokenType::LeftParen => {
+        match self.0.next().expect("Unexpected end of file.") {
+            Token {
+                token_type: TokenType::LeftParen,
+                ..
+            } => {
                 let expr = self.expression()?;
                 if self.0.match_tokens(&[TokenType::RightParen]).is_some() {
                     Ok(Expr::Grouping(Box::new(expr)))
@@ -140,29 +175,19 @@ impl<'a> ExpressionParser<'a> {
                 }
             }
 
-            Some(
-                token @ Token {
-                    token_type: TokenType::Identifier(_),
-                    ..
-                },
-            ) => Ok(Expr::Variable(token)),
+            token @ Token {
+                token_type: TokenType::Identifier(_),
+                ..
+            } => Ok(Expr::Variable(token)),
 
-            Some(token) => LoxValue::try_from(&token)
-                .map(|value| Expr::Literal {
-                    value,
-                    token: token.clone(),
-                })
-                .map_err(|_| {
-                    let lexeme = token.token_type.lexeme();
-                    ParseError::ExpressionExpected {
-                        line: token.line(),
-                        lexeme,
-                        message: "Expect expression.",
-                        span: token.span(),
-                    }
+            token => match LoxValue::try_from(&token) {
+                Ok(value) => Ok(Expr::Literal { value, token }),
+                Err(_) => Err(ParseError::ExpressionExpected {
+                    line: token.line(),
+                    lexeme: token.token_type.lexeme(),
+                    span: token.span(),
                 }),
-
-            _ => panic!("Unexpected end of file."),
+            },
         }
     }
 }

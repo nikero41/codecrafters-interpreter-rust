@@ -15,6 +15,10 @@ impl SourceMap {
             length,
         }
     }
+
+    // pub fn move(self, offset: usize) -> Self {
+    //     self.start_location
+    // }
 }
 
 impl From<Location> for SourceMap {

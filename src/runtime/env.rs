@@ -1,6 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{debug::Debugable, runtime::RuntimeError, token::Token, values::LoxValue};
+use crate::{
+    ast::statement::NativeFunction, debug::Debugable, runtime::RuntimeError, token::Token,
+    values::LoxValue,
+};
 
 #[derive(Debug)]
 pub struct Environment {
@@ -12,10 +15,15 @@ pub type EnvironmentRef = Rc<RefCell<Environment>>;
 
 impl Environment {
     pub fn new(parent: Option<EnvironmentRef>) -> Rc<RefCell<Self>> {
-        Rc::new(RefCell::new(Self {
+        let env = Rc::new(RefCell::new(Self {
             values: HashMap::new(),
             enclosing: parent,
-        }))
+        }));
+
+        env.borrow_mut()
+            .define("clock".to_string(), LoxValue::from(NativeFunction::Clock));
+
+        env
     }
 
     pub fn new_sub(parent: EnvironmentRef) -> Rc<RefCell<Self>> {
@@ -25,8 +33,9 @@ impl Environment {
         }))
     }
 
-    pub fn define(&mut self, name: String, value: LoxValue) {
+    pub fn define(&mut self, name: String, value: LoxValue) -> &mut Self {
         self.values.insert(name, value);
+        self
     }
 
     pub fn mutate(&mut self, name_token: Token, value: LoxValue) -> Result<(), RuntimeError> {

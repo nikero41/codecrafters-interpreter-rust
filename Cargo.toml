@@ -13,3 +13,4 @@ thiserror = "2.0.18"
 clap = { version = "4.1.4", features = ["derive", "string"] }
 itertools = "0.14.0"
 miette = { version = "7.6.0", features = ["fancy"] }
+derive_more = { version = "2.1.1", features = ["from", "display", "into", "try_from"] }

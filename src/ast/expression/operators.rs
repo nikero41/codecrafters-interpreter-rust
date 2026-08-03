@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use derive_more::Display;
 
 use crate::token::{Keyword, TokenType};
 
@@ -22,17 +22,27 @@ impl TryFrom<&TokenType> for LogicalOp {
 }
 
 // operator → "==" | "!=" | "<" | "<=" | ">" | ">=" | "+"  | "-"  | "*" | "/" | ;
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum BinaryOp {
+    #[display("{}", TokenType::Equal.lexeme())]
     Equal,
+    #[display("{}", TokenType::BangEqual.lexeme())]
     NotEqual,
+    #[display("{}", TokenType::Less.lexeme())]
     Less,
+    #[display("{}", TokenType::LessEqual.lexeme())]
     LessEqual,
+    #[display("{}", TokenType::Greater.lexeme())]
     Greater,
+    #[display("{}", TokenType::GreaterEqual.lexeme())]
     GreaterEqual,
+    #[display("{}", TokenType::Plus.lexeme())]
     Plus,
+    #[display("{}", TokenType::Minus.lexeme())]
     Minus,
+    #[display("{}", TokenType::Star.lexeme())]
     Multiply,
+    #[display("{}", TokenType::Slash.lexeme())]
     Divide,
 }
 
@@ -56,26 +66,11 @@ impl TryFrom<&TokenType> for BinaryOp {
     }
 }
 
-impl Display for BinaryOp {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryOp::Equal => write!(f, "{}", TokenType::Equal.lexeme()),
-            BinaryOp::NotEqual => write!(f, "{}", TokenType::BangEqual.lexeme()),
-            BinaryOp::Less => write!(f, "{}", TokenType::Less.lexeme()),
-            BinaryOp::LessEqual => write!(f, "{}", TokenType::LessEqual.lexeme()),
-            BinaryOp::Greater => write!(f, "{}", TokenType::Greater.lexeme()),
-            BinaryOp::GreaterEqual => write!(f, "{}", TokenType::GreaterEqual.lexeme()),
-            BinaryOp::Plus => write!(f, "{}", TokenType::Plus.lexeme()),
-            BinaryOp::Minus => write!(f, "{}", TokenType::Minus.lexeme()),
-            BinaryOp::Multiply => write!(f, "{}", TokenType::Star.lexeme()),
-            BinaryOp::Divide => write!(f, "{}", TokenType::Slash.lexeme()),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum UnaryOp {
+    #[display("{}", TokenType::Minus.lexeme())]
     Minus,
+    #[display("{}", TokenType::Bang.lexeme())]
     Not,
 }
 
@@ -87,15 +82,6 @@ impl TryFrom<&TokenType> for UnaryOp {
             TokenType::Minus => Ok(UnaryOp::Minus),
             TokenType::Bang => Ok(UnaryOp::Not),
             _ => Err("Not a unary operator"),
-        }
-    }
-}
-
-impl Display for UnaryOp {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UnaryOp::Minus => write!(f, "{}", TokenType::Minus.lexeme()),
-            UnaryOp::Not => write!(f, "{}", TokenType::Bang.lexeme()),
         }
     }
 }

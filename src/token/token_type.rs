@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::token::Keyword;
+use crate::token::{Keyword, Token};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum TokenType {
@@ -29,6 +29,7 @@ pub enum TokenType {
     Keyword(Keyword),
     Eof,
     Dummy,
+    Combinator(Vec<Token>),
 }
 
 impl TokenType {
@@ -59,6 +60,7 @@ impl TokenType {
             Self::Keyword(keyword) => keyword.name(),
             Self::Eof => "EOF",
             Self::Dummy => "Dummy",
+            Self::Combinator(_) => todo!(),
         }
     }
 
@@ -90,6 +92,7 @@ impl TokenType {
             Self::Keyword(keyword) => format!("{}", keyword),
             Self::Eof => String::new(),
             Self::Dummy => "DUMMY".to_string(),
+            Self::Combinator(_) => todo!(),
         }
     }
 

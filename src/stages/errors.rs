@@ -25,11 +25,10 @@ pub enum ParseError {
     #[error("[line {line}] Error at end: {message}")]
     Eof { line: u32, message: &'static str },
     #[diagnostic(code(syntax_error::expression_expected))]
-    #[error("[line {line}] Error at '{lexeme}': {message}")]
+    #[error("[line {line}] Error at '{lexeme}': Expect expression.")]
     ExpressionExpected {
         line: u32,
         lexeme: String,
-        message: &'static str,
         #[label]
         span: SourceSpan,
     },
@@ -64,13 +63,22 @@ pub enum ParseError {
         #[label]
         span: SourceSpan,
     },
+    #[diagnostic(code(syntax_error::too_many_arguments))]
+    #[error("[line {line}] Error: Can't have more than 255 arguments.")]
+    TooManyArguments {
+        line: u32,
+        #[label]
+        span: SourceSpan,
+    },
 }
 
 impl ParseError {
     pub fn needs_sync(&self) -> bool {
         !matches!(
             self,
-            ParseError::InvalidAssignment { .. } | ParseError::Eof { .. }
+            ParseError::InvalidAssignment { .. }
+                | ParseError::Eof { .. }
+                | ParseError::TooManyArguments { .. }
         )
     }
 }

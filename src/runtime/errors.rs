@@ -32,4 +32,20 @@ pub enum RuntimeError {
         #[label]
         span: SourceSpan,
     },
+    #[diagnostic(code(runtime_error::not_callable))]
+    #[error("[line {line}] Error: Can only call functions and classes.")]
+    NotCallable {
+        line: u32,
+        #[label]
+        span: SourceSpan,
+    },
+    #[diagnostic(code(runtime_error::invalid_function_arguments))]
+    #[error("[line {line}] Error: Expected {expected} arguments but got {received}.")]
+    InvalidArguments {
+        line: u32,
+        expected: usize,
+        received: usize,
+        #[label]
+        span: SourceSpan,
+    },
 }

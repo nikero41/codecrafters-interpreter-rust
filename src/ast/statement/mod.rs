@@ -11,6 +11,9 @@ use crate::{
 mod parser;
 pub use parser::*;
 
+mod native_functions;
+pub use native_functions::*;
+
 #[derive(Debug, Clone)]
 pub enum Stmt {
     /// printStmt → "print" expression ";" ;
@@ -26,7 +29,11 @@ pub enum Stmt {
         else_branch: Option<Box<Stmt>>,
     },
     /// whileStmt → "while" "(" expression ")" statement ;
-    While { condition: Expr, body: Box<Stmt> },
+    While {
+        condition: Expr,
+        body: Box<Stmt>,
+    },
+    NativeFunction(NativeFunction),
 }
 
 impl Stmt {
@@ -45,17 +52,6 @@ impl Stmt {
                     .try_for_each(|stmt| stmt.execute(Rc::clone(&block_env)))?
             }
 
-            // Stmt::DeclareVar { name, expr } => {
-            //     let value = if let Some(expr) = expr {
-            //         expr.eval(Rc::clone(&env))?
-            //     } else {
-            //         LoxValue::Nil {
-            //             token: name.clone(),
-            //         }
-            //     };
-            //     env.borrow_mut()
-            //         .define(name.token_type.lexeme(), value.clone());
-            // }
             Stmt::If {
                 condition,
                 then_branch,
@@ -78,6 +74,10 @@ impl Stmt {
                     condition_value = condition.clone().eval(Rc::clone(&while_env))?.to_bool();
                 }
             }
+
+            Stmt::NativeFunction(native_function) => {
+                todo!()
+            }
         }
         Ok(())
     }
@@ -88,14 +88,6 @@ impl Display for Stmt {
         match self {
             Stmt::Print(expr) => write!(f, "(Print {})", expr),
             Stmt::Expr(expr) => write!(f, "{}", expr),
-            // Stmt::DeclareVar { name, expr } => {
-            //     let expr_str = if let Some(expr) = expr {
-            //         format!("{}", expr)
-            //     } else {
-            //         "nil".to_string()
-            //     };
-            //     write!(f, "(DeclareVar {} {})", name.token_type.lexeme(), expr_str)
-            // }
             Stmt::Block(stmts) => {
                 let stmts_str = stmts
                     .iter()
@@ -120,6 +112,7 @@ impl Display for Stmt {
             Stmt::While { body, condition } => {
                 write!(f, "(While [{}]\n{}\n)", condition, indent(body, 1))
             }
+            Stmt::NativeFunction(_) => write!(f, "<native fn>"),
         }
     }
 }

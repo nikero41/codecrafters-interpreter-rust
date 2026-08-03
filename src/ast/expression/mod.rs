@@ -6,7 +6,7 @@ use std::{
 use crate::{
     ast::{declaration::Declaration, statement::Stmt},
     debug::Debugable,
-    runtime::{EnvironmentRef, RuntimeError},
+    runtime::{Environment, EnvironmentRef, RuntimeError},
     token::Token,
     values::LoxValue,
 };
@@ -23,8 +23,15 @@ pub enum Expr {
     Literal { value: LoxValue, token: Token },
     /// grouping → "(" expression ")" ;
     Grouping(Box<Expr>),
-    /// unary → ( "-" | "!" ) expression ;
+    /// unary → ( "-" | "!" ) expression | call ;
     Unary { operator: UnaryOp, right: Box<Expr> },
+    /// call → primary ( "(" arguments? ")" )* ;
+    /// arguments → expression ( "," expression )* ;
+    Call {
+        callee: Box<Expr>,
+        paren: Token,
+        arguments: Vec<Expr>,
+    },
     /// logic → logic ( "and" | "or" logic )* ;
     Logical {
         left: Box<Expr>,
@@ -66,6 +73,44 @@ impl Expr {
                 Ok(value)
             }
             Expr::Variable(token) => env.borrow().get(&token),
+            Expr::Call {
+                callee, arguments, ..
+            } => {
+                let callee = callee.eval(Rc::clone(&env))?;
+
+                let LoxValue::Callable {
+                    arity, ref body, ..
+                } = callee
+                else {
+                    let token = callee.token();
+                    return Err(RuntimeError::NotCallable {
+                        line: token.line(),
+                        span: token.span(),
+                    });
+                };
+
+                if arguments.len() != arity {
+                    let token = callee.token();
+                    return Err(RuntimeError::InvalidArguments {
+                        line: token.line(),
+                        expected: arity,
+                        received: arguments.len(),
+                        span: token.span(),
+                    });
+                }
+
+                let func_env = Environment::new_sub(Rc::clone(&env));
+                for arg in arguments {
+                    let value = arg.eval(Rc::clone(&env))?;
+                    func_env.borrow_mut().define("".to_string(), value);
+                }
+
+                for stmt in body.clone() {
+                    stmt.execute(Rc::clone(&func_env))?
+                }
+
+                Ok(callee)
+            }
         }
     }
 
@@ -82,6 +127,7 @@ impl Expr {
                     token,
                 }),
                 LoxValue::Object { .. }
+                | LoxValue::Callable { .. }
                 | LoxValue::String { .. }
                 | LoxValue::Bool { .. }
                 | LoxValue::Nil { .. } => {
@@ -192,6 +238,7 @@ impl Display for Expr {
                     }
                 }
                 LoxValue::Nil { .. } => write!(f, "nil"),
+                LoxValue::Callable { .. } => write!(f, "<native fn>"),
             },
             Expr::Grouping(expr) => {
                 write!(f, "(group {})", expr)
@@ -210,7 +257,7 @@ impl Display for Expr {
                 write!(f, "{} = {}", token.token_type.lexeme(), value)
             }
             Expr::Variable(token) => {
-                write!(f, "[{}]", token.token_type.lexeme())
+                write!(f, "{}", token.token_type.lexeme())
             }
             Expr::Logical {
                 left,
@@ -222,6 +269,20 @@ impl Display for Expr {
                     LogicalOp::Or => "OR",
                 };
                 write!(f, "({} {} {})", operator, left, right)
+            }
+            Expr::Call {
+                callee, arguments, ..
+            } => {
+                write!(
+                    f,
+                    "{}({})",
+                    callee,
+                    arguments
+                        .iter()
+                        .map(|arg| arg.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                )
             }
         }
     }
@@ -237,25 +298,21 @@ impl Debugable for Expr {
             Expr::Assign { value, .. } => value.source_map(),
             Expr::Variable(token) => token.source_map(),
             Expr::Logical { left, .. } => left.source_map(),
+            Expr::Call { callee, .. } => callee.source_map(),
         }
     }
 
     fn line(&self) -> u32 {
-        match self {
-            Expr::Literal { token, .. } => token.line(),
-            Expr::Grouping(expr) => expr.line(),
-            Expr::Unary { right, .. } => right.line(),
-            Expr::Binary { left, .. } => left.line(),
-            Expr::Assign { value, .. } => value.line(),
-            Expr::Variable(token) => token.line(),
-            Expr::Logical { left, .. } => left.line(),
-        }
+        self.source_map().line()
     }
 
     fn span(&self) -> miette::SourceSpan {
         match self {
             Expr::Literal { token, .. } => token.span(),
-            Expr::Grouping(expr) => expr.span(),
+            Expr::Grouping(expr) => miette::SourceSpan::new(
+                (expr.span().offset() - "(".len()).into(),
+                expr.span().len() + "()".len(),
+            ),
             Expr::Unary { right, .. } => (right.span().offset(), '-'.len_utf8()).into(),
             Expr::Binary {
                 left,
@@ -263,8 +320,9 @@ impl Debugable for Expr {
                 right,
             } => {
                 // TODO: take into account the length of the operator
-                let length = left.source_map().length + right.source_map().length;
-                (left.span().offset(), length).into()
+                // let length = left.source_map().length + right.source_map().length;
+                // (left.span().offset(), length).into()
+                vec![left.span(), right.span()]
             }
             Expr::Assign { value, .. } => value.span(),
             Expr::Variable(token) => token.span(),
@@ -281,6 +339,7 @@ impl Debugable for Expr {
                 let length = left.source_map().length + right.source_map().length + operator_length;
                 (left.span().offset(), length).into()
             }
+            Expr::Call { callee, .. } => callee.span(),
         }
     }
 }

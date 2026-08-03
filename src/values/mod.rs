@@ -1,30 +1,30 @@
-use std::fmt::{Display, Formatter};
+use derive_more::Display;
 
 use crate::{
+    ast::statement::Stmt,
     debug::Debugable,
     runtime::RuntimeError,
     token::{Keyword, Token, TokenType},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Display)]
 pub enum LoxValue {
+    #[display("function")]
+    Callable {
+        token: Token,
+        arity: usize,
+        body: Vec<Stmt>,
+    },
+    #[display("object")]
     Object { token: Token },
+    #[display("{}", value)]
     Number { value: f64, token: Token },
+    #[display("{}", value)]
     String { value: String, token: Token },
+    #[display("{}", value)]
     Bool { value: bool, token: Token },
+    #[display("nil")]
     Nil { token: Token },
-}
-
-impl Display for LoxValue {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LoxValue::Number { value, .. } => write!(f, "{}", value),
-            LoxValue::String { value, .. } => write!(f, "{}", value),
-            LoxValue::Bool { value, .. } => write!(f, "{}", value),
-            LoxValue::Nil { .. } => write!(f, "nil"),
-            LoxValue::Object { .. } => write!(f, "object"),
-        }
-    }
 }
 
 impl TryFrom<&Token> for LoxValue {
@@ -65,6 +65,7 @@ impl LoxValue {
             LoxValue::String { .. } => true,
             LoxValue::Nil { .. } => false,
             LoxValue::Object { .. } => true,
+            LoxValue::Callable { .. } => true,
         }
     }
 
@@ -75,6 +76,7 @@ impl LoxValue {
             LoxValue::String { token, .. } => token,
             LoxValue::Bool { token, .. } => token,
             LoxValue::Nil { token } => token,
+            LoxValue::Callable { token, .. } => token,
         }
     }
 
